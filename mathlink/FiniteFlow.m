@@ -1274,8 +1274,12 @@ FFReconstructFunctionMod[id_,vars_,OptionsPattern[]] := Module[
     thisopt = Join[{"MaxPrimes"->maxnp},FilterRules[opt,Select[Options[FFReconstructUnivariate],FreeQ[#,"MaxPrimes"]&]]];
     Return[FFReconstructUnivariateMod[id,vars,Sequence@@thisopt]]
   ];
-  If[StringQ[OptionValue["Degrees"]],
+  Which[
+    StringQ[OptionValue["Degrees"]],
     res = FFLoadDegrees[id,OptionValue["Degrees"]];,
+    OptionValue["Degrees"][[0]]===List,
+    res = FFSetDegrees[id,OptionValue["Degrees"]];,
+    True,
     res = FFAllDegrees[id, nthreads, Sequence@@FilterRules[opt,Options[FFAllDegrees]]];
   ];
   If[TrueQ[res == $Failed], Return[$Failed]];
