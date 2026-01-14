@@ -4930,7 +4930,7 @@ extern "C" {
 
     MLPutFunction(mlp, "List", n_points);
     for (int j=0; j<n_points; ++j) {
-      if (xout[j][0] == FAILED)
+      if (nparsout != 0 && xout[j][0] == FAILED)
         MLPutSymbol(mlp, "$Failed");
       else
         MLPutInteger64List(mlp, (mlint64*)(xout[j].get()), nparsout);

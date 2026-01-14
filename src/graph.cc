@@ -1337,6 +1337,7 @@ namespace fflow {
 
     if (a.nparsout<1) {
       res.clear();
+      res.reserve(input.size());
       return SUCCESS;
     }
 
