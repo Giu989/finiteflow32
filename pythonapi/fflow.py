@@ -588,6 +588,15 @@ def LSolveOutputIsSparse(graph,node):
     return ret == 1
 
 
+def LSolveOptimizeZeroVars(graph, node):
+    return _StatusCheck(_lib.ffLSolveOptimizeZeroVars(graph, node))
+
+
+def LSolveIsOptimizingZeroVars(graph,node):
+    ret = _Check(_lib.ffLSolveIsOptimizingZeroVars(graph, node))
+    return ret == 1
+
+
 def LSolveNDepVars(graph, node):
     return _Check(_lib.ffLSolveNDepVars(graph, node))
 

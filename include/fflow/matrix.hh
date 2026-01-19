@@ -669,7 +669,7 @@ namespace fflow {
 
     // Remove equations of the form 0==0 and x[i]==0, returning the
     // new number of rows.
-    unsigned removeZeroDeps();
+    unsigned removeZeroDeps(bool remove_zerovars);
 
     UInt el(unsigned i, unsigned j) const
     {

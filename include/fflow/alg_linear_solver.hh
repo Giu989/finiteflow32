@@ -352,6 +352,13 @@ namespace fflow {
       return zerodeps_.size();
     }
 
+    Ret optimize_zero_vars(bool flag=true);
+
+    bool is_optimizing_zero_vars() const
+    {
+      return zerovars_opt_();
+    }
+
   private:
 
     static SparseLinearSolverData & adata_(AlgorithmData * data)
@@ -411,6 +418,11 @@ namespace fflow {
 
     void optimize_nonneeded_indeps_();
 
+    bool zerovars_opt_() const
+    {
+      return (flag_ & ZEROVAR_OPTIMIZATION);
+    }
+
   private:
 
     // Learning stages:
@@ -430,7 +442,8 @@ namespace fflow {
       MARKED_AND_SWEEPED_ = 1 << 2,
       IMPOSSIBLE_ = 1 << 3,
       KEEP_ALL_OUTS_ = 1 << 4, // only when maxcol_ is specified
-      ONLY_NON_HOMOG_ = 1 << 5
+      ONLY_NON_HOMOG_ = 1 << 5,
+      ZEROVAR_OPTIMIZATION = 1 << 6
     };
 
 

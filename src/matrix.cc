@@ -415,12 +415,13 @@ namespace fflow {
     }
   }
 
-  unsigned SparseMatrix::removeZeroDeps()
+  unsigned SparseMatrix::removeZeroDeps(bool remove_zerovars)
   {
+    const unsigned rzv = remove_zerovars;
     unsigned neqs = std::remove_if(rows_.get(), rows_.get()+n_,
-                                   [](const SparseMatrixRow & r)
+                                   [rzv](const SparseMatrixRow & r)
                                    {
-                                     return r.size() <= 1;
+                                     return r.size() <= rzv;
                                    }) - rows_.get();
     restrict_rows(neqs);
     return neqs;

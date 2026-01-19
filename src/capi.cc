@@ -1634,6 +1634,36 @@ extern "C" {
     return FF_ERROR;
   }
 
+  FFStatus ffLSolveOptimizeZeroVars(FFGraph graph, FFNode node)
+  {
+    Algorithm * alg = session.algorithm(graph, node);
+    if (!alg || !alg->is_mutable())
+      return FF_ERROR;
+
+    if (dynamic_cast<SparseLinearSolver *>(alg)) {
+      SparseLinearSolver & ls = *static_cast<SparseLinearSolver *>(alg);
+      ls.optimize_zero_vars();
+      session.invalidate_subctxt_alg_data(graph, node);
+
+    } else {
+      return FF_ERROR;
+    }
+
+    return FF_SUCCESS;
+  }
+
+  FFStatus ffLSolveIsOptimizingZeroVars(FFGraph graph, FFNode node)
+  {
+    Algorithm * alg = session.algorithm(graph, node);
+
+    if (dynamic_cast<const SparseLinearSolver *>(alg)) {
+      SparseLinearSolver & ls = *static_cast<SparseLinearSolver *>(alg);
+      return ls.is_optimizing_zero_vars();
+    }
+
+    return FF_ERROR;
+  }
+
   FFStatus ffLSolveEqWeight(FFGraph graph, FFNode node, const int * eq_weight)
   {
     Algorithm * alg = session.algorithm(graph, node);

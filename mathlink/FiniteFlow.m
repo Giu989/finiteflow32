@@ -55,7 +55,7 @@ FFAlgQ::usage = "FFAlgQ[graphname, nodename] returns True if the specified algor
 FFSolverNEqsNVars::usage = "FFSolverNEqsNVars[graph,node] returns a length-2 list with the number of equations and variables which defined the linear system represented by the specified node."
 FFSolverResetNeededVars::usage = "FFSolverResetNeededVars[graph, node, vars, neededvars] redefines the set of needed variables of a dense or sparse linear system."
 FFSolverOnlyHomogeneous::usage =  "FFSolverOnlyHomogeneous[graph, node] makes a linear solver return only the homogeneous part of its solution, i.e. without including the constant terms in the output."
-FFSolverOnlyNonHomogeneous::usage =  "FFSolverOnlyNonHomogeneous[graph, node] makes a linear solver return only the non-homogeneous part of its solution and sets to zero all the independent variables (useful if only one solution of the system is needed, rather than the full space of solutions)."
+FFSolverOnlyNonHomogeneous::usage =  "FFSolverOnlyNonHomogeneous[graph, node] makes a linear solver return only the non-homogeneous part of its solution and sets to zero all the independent variables (useful if only one solution of the system is needed, rather than the full space of solutions).  For sparse systems this also activates the optimization which eliminates zero variables (as if calling FFSparseSolverOptimizeZeroVars)."
 FFSolverSparseOutput::usage = "FFSolverSparseOutput[graph, node] makes a sparse linear solver return a sparse representation of the solution matrix."
 FFSolverSparseOutputWithMaxCol::usage = "FFSolverSparseOutputWithMaxCol[graph, node, maxcol] is equivalent to FFSolverSparseOutput[graph, node] but also specifies that only the first `maxcol` unknowns of the system (corresponding to the first `maxcol` columns of its matrix representation) are substituted during Gauss elimination.  See also the available Options to further control its behaviour."
 FFSolverEqWeight::usage = "FFSolverEqWeight[graph,node,eqweight] sets the weight of the equations of a sparse solver, as a list of signed integers."
@@ -186,6 +186,8 @@ FFRatRec[{a1,a2,...},n] is equivalent to {FFRatRec[a1],n],FFRatRec[a2],n],...}."
 FFParallelRatRec::usage = "FFParallelRatRec[{a1,a2,...},n] where a1,a2,... and n are integers, is equivalent to FFRatRec[{a1,a2,...},n] but performs the reconstructions in parallel."
 
 FFPeekNewNodeId::usage = "FFPeekNewNodeId[graph] returns the unique integer id that would internally be assigned to a new node of the graph, if defined immediately after this function call.  It can be used to assign unique identifiers to nodes before their creation."
+FFSparseSolverOptimizeZeroVars::usage = "FFSparseSolverOptimizeZeroVars[graph,node] makes the sparse solver in the specified node optimize away zero variables from the linear system, during the learning stage.\n\nNote that this optimization makes FFSolverNIndepEqs and FFSolverIndepEqs return the number and the list of equations which are independent after removing zero unknonws from the system."
+FFSparseSolverIsOptimizingZeroVars::usage = "FFSparseSolverIsOptimizingZeroVars[graph,node] checks whether the node of a sparse linear system is using the optimization which removes zero variables (see also FFSparseSolverOptimizeZeroVars)."
 
 
 FF::badrational = "Argument `1` is not a rational number."
@@ -1475,6 +1477,7 @@ FFSparseSolve[eqs_, vars_, OptionsPattern[]] := Module[
       
       res = FFAlgSparseSolver[graph,sys,{in},params,eqs,vars,
                                 Sequence@@FilterRules[{opt}, Options[FFAlgSparseSolver]]];
+      FFSparseSolverOptimizeZeroVars[graph,sys];
       If[res==$Failed,Throw[$Failed]];
       If[(!TrueQ[OptionValue["IndepVarsOnly"]]) && TrueQ[OptionValue["SparseOutput"]],
         FFSolverSparseOutput[graph,sys];
@@ -1536,6 +1539,7 @@ FFInverse[mat_List, OptionsPattern[]]:=Module[
                FFAlgDenseSolver[graph,sys,{in},params,eqs,Join[varsx,varsy],
                                    Sequence@@FilterRules[{opt}, Options[FFAlgDenseSolver]]]];
       If[res==$Failed,Throw[$Failed]];
+      If[sparse, FFSparseSolverOptimizeZeroVars[graph,sys];];
       FFSolverOnlyHomogeneous[graph,sys];
 
       FFGraphOutput[graph,sys];
@@ -1751,6 +1755,10 @@ FFLinearFit[params_,delta_,integrandin_, tauvarsin_,varsin_,opt:OptionsPattern[]
     FFDeleteGraph[graph];
     res
 ];
+
+
+FFSparseSolverOptimizeZeroVars[graph_,node_]:=FFSparseSolverOptimizeZeroVarsImplem[GetGraphId[graph],GetAlgId[graph,node]];
+FFSparseSolverIsOptimizingZeroVars[graph_,node_]:=FFSparseSolverIsOptimizingZeroVarsImplem[GetGraphId[graph],GetAlgId[graph,node]];
 
 
 FFRatRec[a_List,p_]:=Catch[ToExpression/@FFRatRecImplem[ToString[CheckedInt[#]]&/@a,ToString[CheckedInt[p]]]];
@@ -2087,6 +2095,8 @@ FFLoadLibObjects[] := Module[
     FFAlgEvalCountImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_evalcount", LinkObject, LinkObject];
     FFAlgEvalCountGetSetImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_evalcount_getset", LinkObject, LinkObject];
     FFPeekNewNodeIdImplem = LibraryFunctionLoad[fflowlib, "fflowml_peek_new_node_id", LinkObject, LinkObject];
+    FFSparseSolverOptimizeZeroVarsImplem = LibraryFunctionLoad[fflowlib, "fflowml_sls_optimize_zero_vars", LinkObject, LinkObject];
+    FFSparseSolverIsOptimizingZeroVarsImplem = LibraryFunctionLoad[fflowlib, "fflowml_sls_is_optimizing_zero_vars", LinkObject, LinkObject];
 ];
 
 

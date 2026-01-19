@@ -398,6 +398,12 @@ extern "C" {
   // if it is not and FF_ERROR if an error occurred.
   unsigned ffLSolveIsImpossible(FFGraph graph, FFNode node);
 
+  // Detect and remove zero unknowns from linear system
+  FFStatus ffLSolveOptimizeZeroVars(FFGraph graph, FFNode node);
+
+  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
+  FFStatus ffLSolveIsOptimizingZeroVars(FFGraph graph, FFNode node);
+
   // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
   unsigned ffLSolveOutputIsSparse(FFGraph graph, FFNode node);
 

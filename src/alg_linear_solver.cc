@@ -675,7 +675,7 @@ namespace fflow {
         if (row.size() != 1) {
           if (!(xinfo_[col] & LSVar::IS_NON_ZERO))
             return FAILED;
-        } else {
+        } else if (zerovars_opt_()) {
           if ((xinfo_[col] & LSVar::IS_NON_ZERO))
             return FAILED;
         }
@@ -702,6 +702,9 @@ namespace fflow {
 
   bool SparseLinearSolver::check_zeroes_(AlgorithmData * data)
   {
+    if (!zerovars_opt_())
+      return false;
+
     if (flag_ & ONLY_NON_HOMOG_)
       return check_zeroes_onlynonhomog_(data);
 
@@ -815,7 +818,7 @@ namespace fflow {
     }
 
     // Filter equations
-    nnindepeqs_ = adata_(data).mat_.removeZeroDeps();
+    nnindepeqs_ = adata_(data).mat_.removeZeroDeps(zerovars_opt_());
 
     // get dependent variables and needed
     {
@@ -1064,10 +1067,12 @@ namespace fflow {
     if (!is_mutable() || stage_ != FIRST_)
       return FAILED;
     invalidate();
-    if (flag)
+    if (flag) {
+      optimize_zero_vars(true);
       flag_ |= ONLY_NON_HOMOG_;
-    else
+    } else {
       flag_ &= ~flag_t(ONLY_NON_HOMOG_);
+    }
     return SUCCESS;
   }
 
@@ -1162,6 +1167,18 @@ namespace fflow {
     for (unsigned j=0; j<nvars_; ++j)
       if (!(xinfo_[j] & LSVar::IS_NON_ZERO) && (xinfo_[j] & LSVar::IS_DEP))
         zeroes.push_back(j);
+  }
+
+  Ret SparseLinearSolver::optimize_zero_vars(bool flag)
+  {
+    if (!is_mutable())
+      return FAILED;
+    invalidate();
+    if (flag)
+      flag_ |= ZEROVAR_OPTIMIZATION;
+    else
+      flag_ &= ~flag_t(ZEROVAR_OPTIMIZATION);
+    return SUCCESS;
   }
 
 } // namespace fflow

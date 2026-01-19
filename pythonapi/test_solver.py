@@ -13,9 +13,10 @@ def testSolve():
     print("Test solver...")
     g,inp = NewGraphWithInput(1)
     ls = AlgAnalyticSparseLSolve(g,inp,36, cols, ParseIdxRatFun(["y"],coeffs))
+    LSolveOptimizeZeroVars(g,ls)
     SetOutputNode(g,ls)
     Learn(g)
-    if LSolveDepVars(g,ls) != depvars:
+    if sorted(LSolveDepVars(g,ls)) != sorted(depvars):
         print("- Dep vars = ",LSolveDepVars(g,ls))
         print("- Test failed: something wrong with the system")
         exit(1)
@@ -36,6 +37,7 @@ def testMaxCol(maxcol,backsubst,keepfullout):
     ls = AlgAnalyticSparseLSolve(g,inp,3,cols,ParseIdxRatFun(params,ccs),
                                  needed_vars=(1,2))
 
+    LSolveOptimizeZeroVars(g,ls)
     LSolveSparseOutputWithMaxCol(g,ls,maxcol,backsubst,keepfullout)
 
     SetOutputNode(g,ls)

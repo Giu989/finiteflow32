@@ -5577,4 +5577,64 @@ extern "C" {
     return LIBRARY_NO_ERROR;
   }
 
+
+  int fflowml_sls_optimize_zero_vars(WolframLibraryData libData, MLINK mlp)
+  {
+    (void)(libData);
+    FFLOWML_SET_DBGPRINT();
+
+    int id, nodeid, nargs;
+    MLNewPacket(mlp);
+
+    MLTestHead( mlp, "List", &nargs);
+    MLGetInteger32(mlp, &id);
+    MLGetInteger32(mlp, &nodeid);
+    Ret ret = FAILED;
+
+    Algorithm * alg = session.algorithm(id, nodeid);
+    if (dynamic_cast<SparseLinearSolver *>(alg)) {
+      SparseLinearSolver & ls = *static_cast<SparseLinearSolver *>(alg);
+      ret = ls.optimize_zero_vars();
+      session.invalidate_subctxt_alg_data(id, nodeid);
+    }
+
+    MLNewPacket(mlp);
+
+    if (ret == SUCCESS)
+      MLPutSymbol(mlp, "Null");
+    else
+      MLPutSymbol(mlp, "$Failed");
+
+    return LIBRARY_NO_ERROR;
+  }
+
+  int fflowml_sls_is_optimizing_zero_vars(WolframLibraryData libData, MLINK mlp)
+  {
+    (void)(libData);
+    FFLOWML_SET_DBGPRINT();
+
+    int id, nodeid, nargs;
+    MLNewPacket(mlp);
+
+    MLTestHead( mlp, "List", &nargs);
+    MLGetInteger32(mlp, &id);
+    MLGetInteger32(mlp, &nodeid);
+    Ret ret = FAILED;
+
+    Algorithm * alg = session.algorithm(id, nodeid);
+    if (dynamic_cast<const SparseLinearSolver *>(alg)) {
+      const SparseLinearSolver & ls = *static_cast<SparseLinearSolver *>(alg);
+      ret = ls.is_optimizing_zero_vars();
+    }
+
+    if (ret == FAILED)
+      MLPutSymbol(mlp, "$Failed");
+    else if (ret)
+      MLPutSymbol(mlp, "True");
+    else
+      MLPutSymbol(mlp, "False");
+
+    return LIBRARY_NO_ERROR;
+  }
+
 } // extern "C"

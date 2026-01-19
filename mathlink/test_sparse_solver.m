@@ -46,6 +46,7 @@ FFAlgSparseSolver["g","sol",{"in"},params,
   vars,
   "NeededVars"->vars[[2;;]]
 ] // tcheck;
+FFSparseSolverOptimizeZeroVars["g","sol"]//tcheck;
 FFSolverSparseOutputWithMaxCol[
   "g","sol",maxcol,
   "BackSubstitution"->backsubst,
