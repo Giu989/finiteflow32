@@ -27,12 +27,6 @@
 #include <fflow/ostream.h>
 #include <fflow/debug.hh>
 
-#ifdef FFLOW_USE_EXCEPTIONS
-# define FFLOW_THROW(exc) throw exc
-#else
-# define FFLOW_THROW(exc) std::terminate()
-#endif
-
 // Use if(FF_ERRCOND(error_condition)) { ... }
 // to handle errors to hint that they are exceptional cases.
 #if defined(__GNUC__) || defined(__clang__)
@@ -40,8 +34,6 @@
 #else
   #define FF_ERRCOND(cond) (cond)
 #endif
-
-#define FFLOW_LOOP_UNROLL 1
 
 namespace fflow {
 

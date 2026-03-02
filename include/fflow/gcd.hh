@@ -8,12 +8,6 @@
 
 namespace fflow {
 
-#ifdef FFLOW_USE_EXCEPTIONS
-  struct DivisionByZero : public std::invalid_argument {
-    DivisionByZero() : std::invalid_argument("Division by zero") {}
-  };
-#endif
-
   // gcd
   inline UInt gcd(UInt a, UInt b)
   {
