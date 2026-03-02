@@ -76,8 +76,6 @@ cmake . && make install
 
 On Apple Silicon Macs (with M1 processor or newer) add the option `-DCMAKE_OSX_ARCHITECTURES=arm64` to the `cmake` command.
 
-In order to use the Python 3 API, install its dependencies and then add the option `-DFFLOW_PYTHON=1` to the `cmake` command (see [these instructions](pythonapi/README.md) for more details).
-
 In order to install FiniteFlow in a custom path, or specify a
 different path for its dependencies use
 ```
@@ -88,6 +86,8 @@ make install
 ```
 where you can omit any of the options in order to pick a default value
 for them.
+
+In order to use the Python 3 interface, add the option `-DFFLOW_PYTHON=1` to the `cmake` command (note that it requires the `cffi` Python package, see [these instructions](pythonapi/README.md) for more details).
 
 In order to use FiniteFlow from the Mathematica interface, consider
 adding the following to your Mathematica `init.m` file
@@ -106,6 +106,9 @@ Tutorial and FAQ
 ----------------
 
 A tutorial using the Mathematica interface is included, in the file
-[mathlink/tutorial.wl](mathlink/tutorial.wl).  A list of frequently
-asked questions, is in the file [FAQ.md](FAQ.md).  We kindly ask users
-to read it before reporting an issue.
+[mathlink/tutorial.wl](mathlink/tutorial.wl).  Tutorials using the
+Python interface are included in the directory
+[pythonapi/tutorials](pythonapi/tutorials/README.md).
+
+A list of frequently asked questions is in the file [FAQ.md](FAQ.md).
+We kindly ask users to read it before reporting an issue.
