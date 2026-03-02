@@ -468,16 +468,6 @@ namespace fflow {
         auto & rrec = ratrec_[idx];
         rrec = SparseRationalFunction(1);
         rrec.fromUnivariate(recfun);
-        if (pref > 0)
-          for (auto & mon : rrec.numerator()) {
-            mon.exponent(0) += pref;
-            mon.degree() += pref;
-          }
-        else if (pref < 0)
-          for (auto & mon : rrec.denominator()) {
-            mon.exponent(0) -= pref;
-            mon.degree() -= pref;
-          }
         tot_xout += rrec.numerator().size() + rrec.denominator().size();
 
       }
@@ -562,8 +552,7 @@ namespace fflow {
         const auto & rrec = ratrec_[idx];
         const auto & recfun = rec.getFunction();
 
-        const unsigned num_pref = pref > 0 ? pref : 0;
-        const unsigned num_deg = recfun.getNumDegree()+num_pref;
+        const unsigned num_deg = recfun.getNumDegree();
         if (num_deg != rrec.numerator().degree())
           return FAILED;
 
@@ -582,7 +571,7 @@ namespace fflow {
         for (const auto & mon : rrec.denominator()) {
           if (xout - xout_in >= nparsout)
             return FAILED;
-          *xout = recfun.den()[mon.degree()];
+          *xout = recfun.den()[mon.degree()-den_pref];
           ++xout;
         }
 
