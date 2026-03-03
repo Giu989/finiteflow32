@@ -1134,6 +1134,27 @@ def ReconstructFunctionWithDegreesMod(graph, degdata, **kwargs):
     return _ReconstructFunction(cfun,graph,**kwargs)
 
 
+def AllGraphs():
+    n_graphs = _ffi.new('unsigned[1]')
+    graphs = _lib.ffAllGraphs(n_graphs)
+    if graphs == _ffi.NULL:
+        raise Failed()
+    return _ffi.unpack(graphs, n_graphs[0])
+
+def GraphNodes(graph,pruned=False):
+    n_nodes = _ffi.new('unsigned[1]')
+    nodes = _lib.ffGraphNodes(graph,pruned,n_nodes)
+    if nodes == _ffi.NULL:
+        raise Failed()
+    return _ffi.unpack(nodes, n_nodes[0])
+
+def GraphEdges(graph,pruned=False):
+    n_edges = _ffi.new('unsigned[1]')
+    edges = _lib.ffGraphEdges(graph,pruned,n_edges)
+    if edges == _ffi.NULL:
+        raise Failed()
+    edges = iter(_ffi.unpack(edges, n_edges[0]*2))
+    return [(next(edges),next(edges)) for i in range(n_edges[0])]
 
 
 # The following functions are additional utilities implemented using

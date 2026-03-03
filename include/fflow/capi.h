@@ -648,6 +648,18 @@ extern "C" {
                                                const unsigned * deg_data,
                                                FFRatFunList ** results);
 
+
+  // These functions return information about existing graphs and
+  // nodes with an active id.  If the parameter 'pruned' is true, only
+  // nodes/edges contributing to the current output node are returned.
+  // Edges are pairs of nodes, hence n_edges if half the length of the
+  // returned array.  The returned lists must be freed using
+  // ffFreeMemoryU32.
+  FFGraph * ffAllGraphs(unsigned * n_graphs);
+  FFNode * ffGraphNodes(FFGraph graph, bool pruned, unsigned * n_nodes);
+  FFNode * ffGraphEdges(FFGraph graph, bool pruned, unsigned * n_edges);
+
+
   /* API end */
 
 #ifdef __cplusplus

@@ -436,6 +436,8 @@ namespace fflow {
 
     void make_reconstructible(unsigned graphid);
 
+    void active_graph_ids(std::vector<unsigned> & graph_ids);
+
     ~Session();
 
     static unsigned default_nthreads();

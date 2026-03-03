@@ -190,6 +190,15 @@ namespace fflow {
     }
   }
 
+  void Session::active_graph_ids(std::vector<unsigned> & graph_ids)
+  {
+    graph_ids.clear();
+    unsigned max_id = graphs_.size();
+    for (unsigned j=0; j<max_id; ++j)
+      if (graphs_[j].get())
+        graph_ids.push_back(j);
+  }
+
   unsigned Graph::edges(std::vector<unsigned> & out) const
   {
     return edges_(out, false);

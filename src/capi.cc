@@ -3082,4 +3082,48 @@ extern "C" {
     return g->peek_new_node_id();
   }
 
+
+  FFGraph * ffAllGraphs(unsigned * n_graphs)
+  {
+    std::vector<unsigned> ids;
+    session.active_graph_ids(ids);
+    if (n_graphs)
+      *n_graphs = ids.size();
+    return newU32Array(ids.data(), ids.size());
+  }
+
+  FFNode * ffGraphNodes(FFGraph graph, bool pruned, unsigned * n_nodes)
+  {
+    std::vector<unsigned> nodes;
+    Graph * g = session.graph(graph);
+    if (!g)
+      return 0;
+
+    if (pruned)
+      g->marked_nodes(nodes);
+    else
+      g->nodes(nodes);
+
+    if (n_nodes)
+      *n_nodes = nodes.size();
+    return newU32Array(nodes.data(), nodes.size());
+  }
+
+  FFNode * ffGraphEdges(FFGraph graph, bool pruned, unsigned * n_edges)
+  {
+    std::vector<unsigned> edges;
+    Graph * g = session.graph(graph);
+    if (!g)
+      return 0;
+
+    if (pruned)
+      g->marked_edges(edges);
+    else
+      g->edges(edges);
+
+    if (n_edges)
+      *n_edges = edges.size()/2;
+    return newU32Array(edges.data(), edges.size());
+  }
+
 } // extern "C"
