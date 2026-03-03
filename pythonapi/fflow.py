@@ -1045,7 +1045,7 @@ def AlgRatExprEval(graph, in_node, functions,
     cfuns = [_ffi.new("char[]", f.encode('utf8')) for f in functions]
     lens = [len(f) for f in functions]
     return _Check(_lib.ffAlgRatExprEvalEx(graph, in_node,
-                                          cvars, len(variables), cvarpref,
+                                          cvars, n_vars, cvarpref,
                                           cfuns, lens, len(functions)))
 
 
