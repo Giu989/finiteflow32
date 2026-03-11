@@ -55,7 +55,8 @@ extern "C" {
   inline FFU64 ffPrecomputedMulShoup(FFU64 w, FFMod p);
   inline FFU64 ffMulShoup(FFU64 t, FFU64 w, FFU64 wp, FFMod p);
 
-  FFU64 ffMulInverse(FFU64 z, FFMod p);
+  FFU64 ffMulInverseMod(FFU64 z, FFMod p);
+  FFU64 ffDivMod(FFU64 num, FFU64 den, FFMod p);
 
 
   // Implementation of inline functions
@@ -128,8 +129,6 @@ extern "C" {
     FFU128 z = (FFU128)(a) * b;
     return ffDiv2Mod1(z, p);
   }
-
-  // TODO: test add/sub with full flint
 
   inline FFU64 ffAddMod(FFU64 a, FFU64 b, FFMod p)
   {

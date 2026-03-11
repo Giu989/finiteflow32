@@ -1,12 +1,18 @@
+#include <flint.h>
+#include <ulong_extras.h>
 #include "fflow/ffmod.h"
 
-FFU64 ffMulInverse(FFU64 z, FFMod p)
+
+FFU64 ffMulInverseMod(FFU64 z, FFMod p)
 {
-  // NOT IMPLEMENTED YET
-  (void)z;
-  (void)p;
-  return 0;
+  return n_invmod(z, p.n);
 }
+
+FFU64 ffDivMod(FFU64 num, FFU64 den, FFMod p)
+{
+  return ffMulMod(num, ffMulInverseMod(den, p), p);
+}
+
 
 // Instantiate inline functions
 extern inline FFMod ffPrecomputedReciprocalMod(FFU64 n);
