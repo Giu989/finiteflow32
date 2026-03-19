@@ -75,6 +75,13 @@ namespace  {
     explicit MathDbgPrint(WolframLibraryData libData)
       : libData_(libData) {}
 
+    MathDbgPrint() : libData_(0) {}
+
+    void set(WolframLibraryData libData)
+    {
+      libData_ = libData;
+    }
+
     virtual void print(const std::string & msg)
     {
       fflowml_print(libData_, msg);
@@ -90,6 +97,13 @@ namespace  {
     explicit MathLogErr(WolframLibraryData libData)
       : libData_(libData) {}
 
+    MathLogErr() : libData_(0) {}
+
+    void set(WolframLibraryData libData)
+    {
+      libData_ = libData;
+    }
+
     virtual void print(const std::string & msg)
     {
       fflowml_logerr(libData_, msg);
@@ -99,23 +113,22 @@ namespace  {
     WolframLibraryData libData_;
   };
 
-#define FFLOWML_SET_DBGPRINT() \
-  MathDbgPrint math_dbg_print_(libData); \
-  fflow::DBGPrintSet math_dbg_print_setter_(math_dbg_print_); \
-  MathLogErr math_log_err_(libData); \
-  fflow::LogErrorSet math_log_error_setter_(math_log_err_)
+  //#define FFLOWML_SET_DBGPRINT()        \
+  //  MathDbgPrint math_dbg_print_(libData);                    \
+  //  fflow::DBGPrintSet math_dbg_print_setter_(math_dbg_print_);   \
+  //  MathLogErr math_log_err_(libData);                            \
+  //  fflow::LogErrorSet math_log_error_setter_(math_log_err_)
+
+  MathDbgPrint math_dbg_print;
+  MathLogErr math_log_err;
 
 } // namespace
 
 
 namespace  {
 
-  // global data
-
-  //const UInt DEFAULT_MOD = BIG_UINT_PRIMES[BIG_UINT_PRIMES_SIZE-1];
-
-  // mathematica global context
-  Session session;
+  // use the global session
+# define session global_session
 
 
   // internal classes, functions and methods
@@ -1008,14 +1021,16 @@ extern "C" {
 
   int WolframLibrary_initialize(WolframLibraryData libData)
   {
-    (void)(libData);
+    math_dbg_print.set(libData);
+    math_log_err.set(libData);
+    set_dbgprint(math_dbg_print);
+    set_logerr(math_log_err);
 	return 0;
   }
 
   int fflowml_version(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int zero;
 
@@ -1035,7 +1050,6 @@ extern "C" {
   int fflowml_mul_inv(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     mlint64 a, mod;
     int two;
@@ -1055,7 +1069,6 @@ extern "C" {
   int fflowml_prime_no(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int prime_no;
     int two;
@@ -1079,7 +1092,6 @@ extern "C" {
   int fflowml_n_available_primes(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int zero;
     MLTestHead( mlp, "List", &zero);
@@ -1094,7 +1106,6 @@ extern "C" {
   int fflowml_tree_level(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
     int n_args, n_legs, n_flavs, n_vars;
     int * hels;
     mlint64 * flavs;
@@ -1168,7 +1179,6 @@ extern "C" {
   int fflowml_default_nthreads(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int zero;
     MLTestHead( mlp, "List", &zero);
@@ -1181,7 +1191,6 @@ extern "C" {
   int fflowml_graph_new(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLTestHead( mlp, "List", &one);
@@ -1196,7 +1205,6 @@ extern "C" {
   int fflowml_graph_dummy(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLTestHead( mlp, "List", &one);
@@ -1214,7 +1222,6 @@ extern "C" {
   int fflowml_graph_delete(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLTestHead( mlp, "List", &one);
@@ -1232,7 +1239,6 @@ extern "C" {
   int fflowml_node_delete(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLTestHead( mlp, "List", &one);
@@ -1252,7 +1258,6 @@ extern "C" {
   int fflowml_graph_set_out_node(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1277,7 +1282,6 @@ extern "C" {
   int fflowml_graph_input_vars(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1302,7 +1306,6 @@ extern "C" {
   int fflowml_peek_new_node_id(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLTestHead( mlp, "List", &one);
@@ -1323,7 +1326,6 @@ extern "C" {
   int fflowml_graph_nparsout(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1349,7 +1351,6 @@ extern "C" {
   int fflowml_node_nparsout(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1376,7 +1377,6 @@ extern "C" {
   int fflowml_node_set_mutable(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1403,7 +1403,6 @@ extern "C" {
   int fflowml_graph_prune(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1429,7 +1428,6 @@ extern "C" {
   int fflowml_graph_edges(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1463,7 +1461,6 @@ extern "C" {
   int fflowml_graph_nodes(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1497,7 +1494,6 @@ extern "C" {
   int fflowml_alg_simple_subgraph(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1554,7 +1550,6 @@ extern "C" {
   int fflowml_alg_memoized_subgraph(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1611,7 +1606,6 @@ extern "C" {
   int fflowml_alg_subgraph_map(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1669,7 +1663,6 @@ extern "C" {
   int fflowml_alg_dense_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1722,7 +1715,6 @@ extern "C" {
   int fflowml_alg_sparse_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, nvars;
     MLNewPacket(mlp);
@@ -1777,7 +1769,6 @@ extern "C" {
   int fflowml_alg_num_dense_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1826,7 +1817,6 @@ extern "C" {
   int fflowml_alg_node_dense_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -1876,7 +1866,6 @@ extern "C" {
   int fflowml_alg_node_sparse_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, nvars;
     MLNewPacket(mlp);
@@ -1964,7 +1953,6 @@ extern "C" {
   int fflowml_alg_num_sparse_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, nvars;
     MLNewPacket(mlp);
@@ -2013,7 +2001,6 @@ extern "C" {
   int fflowml_alg_sparse_system_ex(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, nvars;
     MLNewPacket(mlp);
@@ -2087,7 +2074,6 @@ extern "C" {
   int fflowml_alg_json_sparse_system(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2136,7 +2122,6 @@ extern "C" {
   int fflowml_alg_json_ratfun(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2185,7 +2170,6 @@ extern "C" {
   int fflowml_alg_system_reset_neeed(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2245,7 +2229,6 @@ extern "C" {
   int fflowml_alg_system_is_impossible(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2293,7 +2276,6 @@ extern "C" {
   int fflowml_alg_system_only_homogeneous(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2337,7 +2319,6 @@ extern "C" {
                                               MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2382,7 +2363,6 @@ extern "C" {
   int fflowml_alg_system_sparse_output(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2418,7 +2398,6 @@ extern "C" {
   int fflowml_alg_system_sparse_output_with_maxcol(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs, maxrow, back_subst_flag, keep_all_outs_flag;
     bool back_subst = true, keep_all_outs = false;
@@ -2466,7 +2445,6 @@ extern "C" {
   int fflowml_alg_system_eq_weight(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2517,7 +2495,6 @@ extern "C" {
     // invalidated in subcontexts
 
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2550,7 +2527,6 @@ extern "C" {
   int fflowml_alg_delete_unneeded_eqs(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -2593,7 +2569,6 @@ extern "C" {
   int fflowml_alg_learn(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2619,7 +2594,6 @@ extern "C" {
   int fflowml_alg_get_info(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2647,7 +2621,6 @@ extern "C" {
   int fflowml_alg_set_learning_options(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2680,7 +2653,6 @@ extern "C" {
   int fflowml_alg_solver_neqs_nvars(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2722,7 +2694,6 @@ extern "C" {
   int fflowml_alg_n_indep_eqs(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2759,7 +2730,6 @@ extern "C" {
   int fflowml_alg_indep_eqs(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2803,7 +2773,6 @@ extern "C" {
   int fflowml_alg_solver_zero_vars(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2847,7 +2816,6 @@ extern "C" {
   int fflowml_alg_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2882,7 +2850,6 @@ extern "C" {
   int fflowml_alg_vars_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -2909,7 +2876,6 @@ extern "C" {
   int fflowml_alg_all_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -2947,7 +2913,6 @@ extern "C" {
   int fflowml_alg_sample(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int two;
     MLNewPacket(mlp);
@@ -2975,7 +2940,6 @@ extern "C" {
   int fflowml_alg_sample_from_points(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int two;
     MLNewPacket(mlp);
@@ -3015,7 +2979,6 @@ extern "C" {
   int fflowml_alg_reconstruct(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -3069,7 +3032,6 @@ extern "C" {
   int fflowml_alg_reconstruct_mod(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -3123,7 +3085,6 @@ extern "C" {
   int fflowml_alg_univariate_reconstruct(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -3167,7 +3128,6 @@ extern "C" {
                                              MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -3207,7 +3167,6 @@ extern "C" {
   int fflowml_alg_numeric_reconstruct(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int one;
     MLNewPacket(mlp);
@@ -3252,7 +3211,6 @@ extern "C" {
   int fflowml_alg_independent_of_var(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, var, n_args;
     MLNewPacket(mlp);
@@ -3277,7 +3235,6 @@ extern "C" {
   int fflowml_alg_nonzero(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3323,7 +3280,6 @@ extern "C" {
   int fflowml_alg_ratfun_eval(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nfunctions;
     int nparsin=0;
@@ -3375,7 +3331,6 @@ extern "C" {
   int fflowml_alg_coeff_ratfun_eval(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nfunctions, ncoeffs;
     int nparsin=0;
@@ -3428,7 +3383,6 @@ extern "C" {
   int fflowml_alg_ratnum_eval(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nnumbers;
     MLNewPacket(mlp);
@@ -3473,7 +3427,6 @@ extern "C" {
   int fflowml_reset_ratnum_eval(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nnumbers;
     MLNewPacket(mlp);
@@ -3524,7 +3477,6 @@ extern "C" {
   int fflowml_alg_chain(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3573,7 +3525,6 @@ extern "C" {
   int fflowml_alg_take(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3635,7 +3586,6 @@ extern "C" {
   int fflowml_alg_slice(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, start, end;
     MLNewPacket(mlp);
@@ -3685,7 +3635,6 @@ extern "C" {
   int fflowml_alg_add(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3730,7 +3679,6 @@ extern "C" {
   int fflowml_alg_mul(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3775,7 +3723,6 @@ extern "C" {
   int fflowml_alg_mat_mul(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nrows1, ncols1, ncols2;
     MLNewPacket(mlp);
@@ -3819,7 +3766,6 @@ extern "C" {
   int fflowml_alg_take_and_add(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3885,7 +3831,6 @@ extern "C" {
     int fflowml_alg_take_and_add_bl(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -3955,7 +3900,6 @@ extern "C" {
   int fflowml_alg_linear_fit(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     std::vector<HornerRatFunPtr> cfun;
     std::vector<HornerRatFunPtr> ifun;
@@ -4099,7 +4043,6 @@ extern "C" {
   int fflowml_alg_numeric_fit(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     std::vector<HornerRatFunPtr> cfun;
     std::vector<HornerRatFunPtr> ifun;
@@ -4234,7 +4177,6 @@ extern "C" {
   int fflowml_alg_laurent(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -4309,7 +4251,6 @@ extern "C" {
   int fflowml_alg_subgraph_fit(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -4384,7 +4325,6 @@ extern "C" {
   int fflowml_alg_subgraph_multifit(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -4475,7 +4415,6 @@ extern "C" {
   int fflowml_alg_subgraph_rec(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -4565,7 +4504,6 @@ extern "C" {
   int fflowml_default_maxdeg(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int zero;
     MLTestHead( mlp, "List", &zero);
@@ -4578,7 +4516,6 @@ extern "C" {
   int fflowml_default_max_rec_primes(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int zero;
     MLTestHead( mlp, "List", &zero);
@@ -4591,7 +4528,6 @@ extern "C" {
   int fflowml_dump_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
     MLTestHead( mlp, "List", &nargs);
@@ -4614,7 +4550,6 @@ extern "C" {
   int fflowml_load_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
     MLTestHead( mlp, "List", &nargs);
@@ -4637,7 +4572,6 @@ extern "C" {
   int fflowml_set_degrees(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
 
@@ -4667,7 +4601,6 @@ extern "C" {
   int fflowml_dump_sample_points(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
     MLTestHead( mlp, "List", &nargs);
@@ -4691,7 +4624,6 @@ extern "C" {
   int fflowml_dump_evaluations(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
     MLTestHead( mlp, "List", &nargs);
@@ -4714,7 +4646,6 @@ extern "C" {
   int fflowml_load_evaluations(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid, nfiles;
     MLTestHead( mlp, "List", &nargs);
@@ -4744,7 +4675,6 @@ extern "C" {
   int fflowml_samples_file_size(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLTestHead( mlp, "List", &nargs);
@@ -4767,7 +4697,6 @@ extern "C" {
   int fflowml_npars_from_degree_info(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLTestHead( mlp, "List", &nargs);
@@ -4792,7 +4721,6 @@ extern "C" {
   int fflowml_graph_evaluate(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs, gid;
     MLTestHead( mlp, "List", &nargs);
@@ -4856,7 +4784,6 @@ extern "C" {
   int fflowml_graph_evaluate_list(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     const UInt max_primes = BIG_UINT_PRIMES_SIZE;
 
@@ -4944,7 +4871,6 @@ extern "C" {
   int fflowml_alg_sparse_mat_mul(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nrows1, ncols1, ncols2;
     MLNewPacket(mlp);
@@ -5016,7 +4942,6 @@ extern "C" {
   int fflowml_alg_count_sample_points(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int two;
     MLNewPacket(mlp);
@@ -5064,7 +4989,6 @@ extern "C" {
   int fflowml_alg_rat_rec(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int two, nints;
     MLNewPacket(mlp);
@@ -5099,7 +5023,6 @@ extern "C" {
   int fflowml_parallel_rat_rec(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int two, nints;
     MLNewPacket(mlp);
@@ -5139,7 +5062,6 @@ extern "C" {
   int fflowml_alg_ratexpr_eval(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nfunctions;
     int nparsin=0;
@@ -5216,7 +5138,6 @@ extern "C" {
   int fflowml_alg_ratexpr_parse(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args, nfunctions;
     int nparsin=0;
@@ -5305,7 +5226,6 @@ extern "C" {
   int fflowml_alg_cached_subgraph(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -5362,7 +5282,6 @@ extern "C" {
   int fflowml_alg_cached_from_subgraph(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -5409,7 +5328,6 @@ extern "C" {
   int fflowml_alg_cached_subgraph_merge(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -5461,7 +5379,6 @@ extern "C" {
                                                         MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs, cachesize;
     MLNewPacket(mlp);
@@ -5495,7 +5412,6 @@ extern "C" {
   int fflowml_alg_evalcount(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int n_args;
     MLNewPacket(mlp);
@@ -5540,7 +5456,6 @@ extern "C" {
   int fflowml_alg_evalcount_getset(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int nargs;
     MLNewPacket(mlp);
@@ -5581,7 +5496,6 @@ extern "C" {
   int fflowml_sls_optimize_zero_vars(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);
@@ -5611,7 +5525,6 @@ extern "C" {
   int fflowml_sls_is_optimizing_zero_vars(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);
-    FFLOWML_SET_DBGPRINT();
 
     int id, nodeid, nargs;
     MLNewPacket(mlp);

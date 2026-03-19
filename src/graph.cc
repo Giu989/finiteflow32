@@ -13,6 +13,8 @@
 
 namespace fflow {
 
+  Session global_session;
+
   Node::~Node()
   {
     if (graph_ && graph_->session_)

@@ -116,7 +116,13 @@ FFReconstructFromCurrentEvaluationsMod::usage="FFReconstructFromCurrentEvaluatio
 FFMissingPoints::usage = "Returned when there are not enough sample points for reconstructing a function on a given prime field."
 FFMissingPrimes::usage = "Returned when sample points from additional prime fields are needed for reconstructing a function."
 
-FFRegisterAlgorithm::usage = "Low level interface for implementing new native algorithms."
+FFRegisterAlgorithm::usage = "Low level interface for implementing new native algorithms. \
+FFRegisterAlgorithm[RegisterFunction,graph,node,{input1,input2,...},{extraargs,...}] is used to register a new node.  \
+This function will call RegisterFunction[graphid,{input1id, input2id,...},{extraargs,...}] where the *id variables are the integer ids corresponding to the graph and input nodes.  \
+The function RegisterFunction must return the integer ID of the newly created node, generally found by calling a C function interfaced to Mathematica.
+"
+FFGraphCId::usage = "FFGraphCId[graph] returns the integer ID that identifies the graph in the C/C++ code.  It can be useful for interacting with custom native extensions."
+FFNodeCId::usage = "FFNodeCId[graph,node] returns the integer ID that identifies the node in its graph in the C/C++ code.  It can be useful for interacting with custom native extensions."
 
 FFSparseEqsToJSON::usage="FFSparseEqsToJSON[outputfilename,params,eqs,vars,pattern,position] serializes the equations eqs in the variables vars, and depending of the free parameters params, in JSON format."
 FFSparseSystemToJSON::usage="FFSparseSystemToJSON[outputfilename,neqs,vars,pars,filelist] creates a JSON file with the information about a sparse system of equations in the variables vars, and depending of the free parameters params, which have been serialized in JSON format in the files of the list filelist.  These JSON files can be created using FFSparseEqsToJSON."
@@ -469,6 +475,10 @@ FFRegisterAlgorithm[algregfun_, gid_, id_, inputs_, args_List]:=Module[
 ];
 
 FFGraphOutput[graphid_,nodeid_]:=Catch[FFGraphSetOutputImplem[GetGraphId[graphid],GetAlgId[graphid,nodeid]]];
+
+
+FFGraphCId[graph_]:=Catch[GetGraphId[graph]];
+FFNodeCId[graph_,node_]:=Catch[GetAlgId[graph,node]];
 
 
 FFGraphInputNode[graphid_]:=Catch[

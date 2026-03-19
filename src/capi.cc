@@ -31,7 +31,7 @@ using namespace fflow;
 
 #define FF_MIN_ERROR (FF_ERROR - 10)
 
-static fflow::Session session;
+#define session global_session
 
 bool ffIsError(unsigned val)
 {
@@ -515,37 +515,34 @@ extern "C" {
     return ffLearn(graph);
   }
 
-  FFUInt * ffEvaluateGraph(FFGraph graph,
-                           const FFUInt * input, unsigned prime_no)
+  FFStatus ffEvaluateGraphInto(FFGraph graph,
+                               const FFUInt * input, unsigned prime_no,
+                               FFUInt * output)
   {
     Graph * g = session.graph(graph);
     if (!session.graph_can_be_evaluated(graph) ||
         prime_no >= BIG_UINT_PRIMES_SIZE)
-      return 0;
+      return FF_ERROR;
 
     Mod mod(BIG_UINT_PRIMES[prime_no]);
-    unsigned nparsout = g->nparsout;
-
-    FFUInt * output = (FFUInt*)malloc(sizeof(FFUInt)*nparsout);
 
     Context * ctxt = session.main_context();
     Ret ret = g->evaluate(ctxt, &input, mod, ctxt->graph_data(graph), output);
 
-    if (ret != SUCCESS) {
-      free(output);
-      return 0;
-    }
+    if (ret != SUCCESS)
+      return FF_ERROR;
 
-    return output;
+    return FF_SUCCESS;
   }
 
-  FFUInt * ffEvaluatePoints(FFGraph graph,
-                            const FFUInt * input, unsigned n_points,
-                            unsigned n_threads)
+  FFStatus ffEvaluatePointsInto(FFGraph graph,
+                                const FFUInt * input, unsigned n_points,
+                                unsigned n_threads,
+                                FFUInt * output)
   {
     Graph * g = session.graph(graph);
     if (!session.graph_can_be_evaluated(graph))
-      return 0;
+      return FF_ERROR;
 
     unsigned nparsin = g->nparsin[0];
     unsigned nparsout = g->nparsout;
@@ -559,22 +556,61 @@ extern "C" {
       UInt prime_no = input[nparsin];
       if (prime_no >= BIG_UINT_PRIMES_SIZE) {
         logerr("Prime index out of bounds");
-        return 0;
+        return FF_ERROR;
       }
       xin[j][nparsin] = BIG_UINT_PRIMES[prime_no];
     }
 
     Ret ret = session.evaluate_list(graph, xin, xout, n_threads);
     if (ret != SUCCESS)
-      return 0;
+      return FF_ERROR;
 
-    FFUInt * output = (FFUInt*)malloc(sizeof(FFUInt)*nparsout*n_points);
     FFUInt * dest = output;
     for (unsigned j=0; j<n_points; ++j, dest += nparsout)
       std::copy(xout[j].get(), xout[j].get()+nparsout, dest);
 
+    return FF_SUCCESS;
+  }
+
+  FFUInt * ffEvaluateGraph(FFGraph graph,
+                           const FFUInt * input, unsigned prime_no)
+  {
+    unsigned nparsout = ffGraphNParsOut(graph);
+    if (nparsout == FF_ERROR)
+      return 0;
+
+    FFUInt * output = (FFUInt*)malloc(sizeof(FFUInt)*nparsout);
+
+    FFStatus ret = ffEvaluateGraphInto(graph, input, prime_no, output);
+
+    if (ret != FF_SUCCESS) {
+      free(output);
+      return 0;
+    }
+
     return output;
   }
+
+  FFUInt * ffEvaluatePoints(FFGraph graph,
+                            const FFUInt * input, unsigned n_points,
+                            unsigned n_threads)
+  {
+    unsigned nparsout = ffGraphNParsOut(graph);
+    if (nparsout == FF_ERROR)
+      return 0;
+
+    FFUInt * output = (FFUInt*)malloc(sizeof(FFUInt)*nparsout*n_points);
+    FFStatus ret = ffEvaluatePointsInto(graph, input, n_points,
+                                        n_threads, output);
+
+    if (ret != FF_SUCCESS) {
+      free(output);
+      return 0;
+    }
+
+    return output;
+  }
+
 
   unsigned ffSubgraphNParsout(FFGraph graph, FFNode node)
   {
@@ -3125,5 +3161,31 @@ extern "C" {
       *n_edges = edges.size()/2;
     return newU32Array(edges.data(), edges.size());
   }
+
+
+  FFStatus ffNodeIsMutable(FFGraph graph, FFNode node)
+  {
+    const Node * n = session.node(graph, node);
+    if (!n)
+      return FF_ERROR;
+    return n->algorithm()->is_mutable();
+  }
+
+
+  static CFunDBGPrint cfun_dbgprint;
+  static CFunDBGPrint cfun_logerr;
+
+  void ffSetDbgPrintFun(FFPrintFun dbgprint_fun)
+  {
+    cfun_dbgprint.cfun = dbgprint_fun;
+    set_dbgprint(cfun_dbgprint);
+  }
+
+  void ffSetLogErrFun(FFPrintFun logerr_fun)
+  {
+    cfun_logerr.cfun = logerr_fun;
+    set_logerr(cfun_logerr);
+  }
+
 
 } // extern "C"

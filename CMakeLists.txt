@@ -127,7 +127,9 @@ set(FFLOW_SOURCES
     src/cached_subgraph.cc
     src/eval_count.cc
     src/ffmod.c
+
     src/capi.cc
+    src/capi_native_ext.cc
 
     src/ffuhash.h
     src/ffuhash.c
@@ -189,6 +191,7 @@ set(FFLOW_HEADERS
     include/fflow/eval_count.hh
     include/fflow/ffmod.h
     include/fflow/capi.h
+    include/fflow/capi_native_ext.h
     )
 
 add_library(fflow ${FFLOW_SOURCES})

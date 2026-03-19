@@ -63,4 +63,23 @@ namespace fflow {
     logerr_->print(msg);
   }
 
+
+  void CFunDBGPrint::print(const std::string & msg)
+  {
+    if (!cfun)
+      return;
+    cfun(msg.c_str());
+  }
+
+
+  void set_dbgprint(DBGPrint & p)
+  {
+    dbgprint_ = &p;
+  }
+
+  void set_logerr(DBGPrint & p)
+  {
+    logerr_ = &p;
+  }
+
 } // namespace fflow

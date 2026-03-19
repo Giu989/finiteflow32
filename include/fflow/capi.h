@@ -9,6 +9,8 @@
  */
 
 
+#pragma once
+
 #include <stddef.h>
 #include <stdint.h>
 #include <stdbool.h>
@@ -119,6 +121,9 @@ extern "C" {
   unsigned ffNodeNParsOut(FFGraph graph, FFNode node);
   FFStatus ffMakeNodeMutable(FFGraph graph, FFNode node);
 
+  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
+  FFStatus ffNodeIsMutable(FFGraph, FFNode node);
+
   FFStatus ffPruneGraph(FFGraph graph);
 
   FFStatus ffLearn(FFGraph graph);
@@ -145,11 +150,32 @@ extern "C" {
                             const FFUInt * input, unsigned n_points,
                             unsigned n_threads);
 
+
+  // These are similar to the functions above without the 'Into'
+  // suffix, but write the result into the 'output' array provided by
+  // the caller.
+  FFStatus ffEvaluateGraphInto(FFGraph graph,
+                               const FFUInt * input, unsigned prime_no,
+                               FFUInt * output);
+  FFStatus ffEvaluatePointsInto(FFGraph graph,
+                                const FFUInt * input, unsigned n_points,
+                                unsigned n_threads,
+                                FFUInt * output);
+
+
   // Returns the FFNode id that would be assigned to a new node of the
   // graph, if defined immediately after this function call.  It can
   // be useful in APIs or applications requiring to assign unique
   // identifiers to nodes before their creation.
   FFNode ffPeekNewNodeId(FFGraph graph);
+
+
+  // Customize the functions used for printing when ffDbgPrint and
+  // ffLogErr are called (by both native extensions and FiniteFlow
+  // itself).
+  typedef void (*FFPrintFun)(const char * str);
+  void ffSetDbgPrintFun(FFPrintFun dbgprint_fun);
+  void ffSetLogErrFun(FFPrintFun logerr_fun);
 
 
   ////////////////

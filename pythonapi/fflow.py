@@ -19,6 +19,17 @@ _FF_MISSING_PRIMES = _FF_ERROR - 2
 _FF_FAILED = 2**64 - 1
 
 
+class _CDefine:
+    pass
+
+cdef = _CDefine()
+cdef.FF_SUCCESS = _FF_SUCCESS
+cdef.FF_ERROR = _FF_ERROR
+cdef.FF_MISSING_POINTS = _FF_MISSING_POINTS
+cdef.FF_MISSING_PRIMES = _FF_MISSING_PRIMES
+cdef.FF_FAILED = _FF_FAILED
+
+
 class Success:
     def __eq__(self, other):
         return type(self) is type(other)
@@ -264,6 +275,9 @@ _lib.ffInit()
 FFLOW_VERSION = _lib.ffVersion()
 FFLOW_VERSION_MINOR = _lib.ffVersionMinor()
 __version__ = str(FFLOW_VERSION) + "." + str(FFLOW_VERSION_MINOR)
+
+def IsError(arg):
+    return _lib.ffIsError(arg)
 
 def MulInv(z, prime_no):
     return _ToUint(_lib.ffMulInv(z, prime_no))

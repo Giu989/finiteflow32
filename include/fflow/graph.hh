@@ -529,6 +529,8 @@ namespace fflow {
 #endif
   };
 
+  extern Session global_session;
+
 
 } // namespace fflow
 
