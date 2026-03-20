@@ -247,6 +247,7 @@ namespace fflow {
     friend class Node;
     friend class Session;
     friend class SubGraph;
+    friend struct GraphExtParallelEvaluator;
 
   private:
     std::vector<std::unique_ptr<Node>> nodes_;
@@ -518,6 +519,7 @@ namespace fflow {
     friend struct GraphParallelEvaluate;
     friend struct GraphParallelReconstruct;
     friend struct GraphParallelReconstructMod;
+    friend struct GraphExtParallelEvaluator;
 
   private:
     std::vector<GraphPtr> graphs_;
@@ -527,6 +529,32 @@ namespace fflow {
 #if FFLOW_THREAD_POOL
     ThreadPool pool_;
 #endif
+  };
+
+  struct GraphExtParallelEvaluator {
+
+    GraphExtParallelEvaluator() = delete;
+    GraphExtParallelEvaluator(GraphExtParallelEvaluator &) = delete;
+    GraphExtParallelEvaluator(GraphExtParallelEvaluator &&) = delete;
+
+    GraphExtParallelEvaluator(Session & s,
+                              unsigned graphid, unsigned n_threads);
+    ~GraphExtParallelEvaluator();
+
+    Ret evaluate(const UInt xin[], Mod mod, unsigned thread_id,
+                 UInt xout[]);
+
+    bool valid() const
+    {
+      return session;
+    }
+
+  private:
+    Session * session;
+    GraphPtr graph;
+    std::unique_ptr<bool[]> synched;
+    unsigned n_threads;
+
   };
 
   extern Session global_session;

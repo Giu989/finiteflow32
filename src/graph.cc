@@ -2115,4 +2115,53 @@ namespace fflow {
   }
 
 
+  GraphExtParallelEvaluator::GraphExtParallelEvaluator(Session & s,
+                                                       unsigned graphid,
+                                                       unsigned nthreads)
+    : session(nullptr), graph(nullptr), synched(nullptr), n_threads(nthreads)
+  {
+    if (!s.graph_can_be_evaluated(graphid))
+      return;
+    Graph & a = *s.graphs_[graphid];
+
+    s.init_subcontexts_(n_threads);
+
+    session = &s;
+    graph.reset(&a);
+    graph->set_immutable();
+    synched.reset(new bool[n_threads]());
+    graph->subgraph_count_ += 1;
+  }
+
+  GraphExtParallelEvaluator::~GraphExtParallelEvaluator()
+  {
+    if (!session)
+      return;
+
+    graph->subgraph_count_ -= 1;
+    if (graph->subgraph_count_ == 0)
+      graph->set_mutable();
+  }
+
+  Ret GraphExtParallelEvaluator::evaluate(const UInt xin[], Mod mod,
+                                          unsigned thread_id,
+                                          UInt xout[])
+  {
+    if (FF_ERRCOND(thread_id >= n_threads)) {
+      logerr("Invalid thread ID");
+      return FAILED;
+    }
+
+    Context * ctxt = &session->sub_ctxt_[thread_id];
+    const unsigned graphid = graph->id_;
+
+    if (FF_ERRCOND(!synched[thread_id])) {
+      session->share_with_subctxt_(graphid, *ctxt);
+      synched[thread_id] = true;
+    }
+
+    return graph->evaluate(ctxt, &xin, mod, ctxt->graph_data(graphid), xout);
+  }
+
+
 } // namespace fflow

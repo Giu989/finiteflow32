@@ -130,6 +130,7 @@ set(FFLOW_SOURCES
 
     src/capi.cc
     src/capi_native_ext.cc
+    src/capi_custom_threads.cc
 
     src/ffuhash.h
     src/ffuhash.c
@@ -192,6 +193,7 @@ set(FFLOW_HEADERS
     include/fflow/ffmod.h
     include/fflow/capi.h
     include/fflow/capi_native_ext.h
+    include/fflow/capi_custom_threads.h
     )
 
 add_library(fflow ${FFLOW_SOURCES})
