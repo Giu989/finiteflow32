@@ -44,7 +44,6 @@ ffibuilder.set_source("_cffi_fflow",
                       ''',
                       libraries = libraries,
                       include_dirs=[includedir],
-                      verbose=True,
                       extra_link_args=extra_link_args
                       )
 
