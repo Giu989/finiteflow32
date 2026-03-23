@@ -3188,4 +3188,75 @@ extern "C" {
   }
 
 
+
+  FFStatus ffU32ListToJSON(FFCStr file, const unsigned * list, size_t len)
+  {
+    Ret ret = json_write_integer_list(file, list, len);
+    if (ret != SUCCESS)
+      return FF_ERROR;
+    return FF_SUCCESS;
+  }
+
+  unsigned * ffU32ListFromJSON(FFCStr file, size_t * len)
+  {
+    std::vector<unsigned> list;
+    Ret ret = json_integer_list(file, list);
+    if (ret != SUCCESS)
+      return 0;
+    if (len)
+      *len = list.size();
+    return newU32Array(list.data(), list.size());
+  }
+
+  FFStatus ffSparseEqsToJSON(FFCStr file,
+                             unsigned n_eqs,
+                             const unsigned * n_non_zero,
+                             const unsigned * non_zero_els,
+                             const size_t * non_zero_coeffs,
+                             const FFRatFunList * rat_functions)
+  {
+    Ret ret = json_write_sparse_eqs(file,
+                                    rat_functions->rf.get(),
+                                    rat_functions->n_functions,
+                                    rat_functions->n_vars,
+                                    n_eqs, n_non_zero,
+                                    non_zero_els, non_zero_coeffs);
+    if (ret != SUCCESS)
+      return FF_ERROR;
+    return FF_SUCCESS;
+  }
+
+  FFStatus ffSparseEqsIdxToJSON(FFCStr file,
+                                unsigned n_eqs,
+                                const unsigned * n_non_zero,
+                                const unsigned * non_zero_els,
+                                const FFIdxRatFunList * non_zero_functions)
+  {
+    Ret ret = json_write_sparse_eqs(file,
+                                    non_zero_functions->rf.rf.get(),
+                                    non_zero_functions->rf.n_functions,
+                                    non_zero_functions->rf.n_vars,
+                                    n_eqs, n_non_zero,
+                                    non_zero_els,
+                                    non_zero_functions->idx.get());
+    if (ret != SUCCESS)
+      return FF_ERROR;
+    return FF_SUCCESS;
+  }
+
+  FFStatus ffSparseSystemToJSON(FFCStr file,
+                                unsigned n_eqs, unsigned n_vars,
+                                unsigned n_params,
+                                const unsigned * needed_vars,
+                                unsigned n_needed_vars,
+                                const FFCStr * eq_json_files, unsigned n_files)
+  {
+    Ret ret = json_write_sparse_system(file, n_eqs, n_vars, n_params,
+                                       needed_vars, n_needed_vars,
+                                       eq_json_files, n_files);
+    if (ret != SUCCESS)
+      return FF_ERROR;
+    return FF_SUCCESS;
+  }
+
 } // extern "C"

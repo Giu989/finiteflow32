@@ -1171,6 +1171,44 @@ def GraphEdges(graph,pruned=False):
     return [(next(edges),next(edges)) for i in range(n_edges[0])]
 
 
+def U32ListToJSON(filename, uint_list):
+    '''Serialize a list of unsigned ints to JSON as: `[len, [list...]]`'''
+    return _StatusCheck(_lib.ffU32ListToJSON(filename.encode('utf8'),
+                                             uint_list, len(uint_list)))
+
+def U32ListFromJSON(filename):
+    '''The input file must be compatible with the format created by U32ListToJSON().'''
+    list_len = _ffi.new('size_t[1]')
+    retc =  _lib.ffU32ListFromJSON(filename.encode('utf8'), list_len)
+    if retc == _ffi.NULL:
+        raise FFlowError()
+    res = _ffi.unpack(retc, list_len[0])
+    _lib.ffFreeMemoryU32(retc)
+    return res
+
+def SparseEqsToJSON(filename, non_zero_els, non_zero_coeffs):
+    '''Serialize a set of equations.'''
+    if sum(len(x) for x in non_zero_els) != len(non_zero_coeffs):
+        raise ValueError("Inconsistent row data.")
+    retc = _lib.ffSparseEqsIdxToJSON(filename.encode('utf8'),
+                                     len(non_zero_els),
+                                     [len(x) for x in non_zero_els],
+                                     [x for x in _chain(*non_zero_els)],
+                                     non_zero_coeffs._ptr)
+    return _StatusCheck(retc)
+
+def SparseSystemToJSON(filename, n_eqs, n_vars, n_params,
+                       needed_vars, eq_json_files):
+    '''Generate the input JSON file for AlgJSONSparseLSolve()'''
+    cfiles = [_ffi.new("char[]", x.encode('utf8')) for x in eq_json_files]
+    retc = _lib.ffSparseSystemToJSON(filename.encode('utf8'),
+                                     n_eqs, n_vars, n_params,
+                                     needed_vars, len(needed_vars),
+                                     cfiles, len(eq_json_files))
+    return _StatusCheck(retc)
+
+
+
 # The following functions are additional utilities implemented using
 # in the Python API, which are not part of the C API (yet).
 
@@ -1289,6 +1327,15 @@ where input/output is the input/output of the new node.
     newnode = AlgTake(graph, [nodein], list((0,jj) for jj in outs))
     return (newnode, fromouts)
 
+def PositionsInList(shorter_list, longer_list):
+    '''PositionsInList(shorter_list, longer_list) returns the
+    positions of the elements of shorter_list into longer_list.
+    Complexity is O(len(shorter_list)+len(longer_list)).
+    '''
+    pos = dict()
+    for idx,el in enumerate(longer_list):
+        pos[el] = idx
+    return [pos[el] for el in shorter_list]
 
 if __name__ == '__main__':
     pass

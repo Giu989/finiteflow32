@@ -675,6 +675,11 @@ extern "C" {
                                                FFRatFunList ** results);
 
 
+
+  /////////////////////
+  // Other utilities //
+  /////////////////////
+
   // These functions return information about existing graphs and
   // nodes with an active id.  If the parameter 'pruned' is true, only
   // nodes/edges contributing to the current output node are returned.
@@ -685,6 +690,37 @@ extern "C" {
   FFNode * ffGraphNodes(FFGraph graph, bool pruned, unsigned * n_nodes);
   FFNode * ffGraphEdges(FFGraph graph, bool pruned, unsigned * n_edges);
 
+
+  // More JSON functions
+
+  // Serialize a list of unsigned ints to JSON as: `[len, [list...]]`
+  FFStatus ffU32ListToJSON(FFCStr file, const unsigned * list, size_t len);
+
+  // The input file must be compatible with the format created by
+  // ffU32ListToJSON().  Free the returned list with
+  // ffFreeMemoryU32().
+  unsigned * ffU32ListFromJSON(FFCStr file, size_t * len);
+
+  // Serialize a set of equations.  The arguments have the same
+  // meaning as in ffAlgAnalyticSparseLSolve() and
+  // ffAlgAnalyticSparseLSolveIdx().
+  FFStatus ffSparseEqsToJSON(FFCStr file,
+                             unsigned n_eqs,
+                             const unsigned * n_non_zero,
+                             const unsigned * non_zero_els,
+                             const size_t * non_zero_coeffs,
+                             const FFRatFunList * rat_functions);
+  FFStatus ffSparseEqsIdxToJSON(FFCStr file,
+                                unsigned n_eqs,
+                                const unsigned * n_non_zero,
+                                const unsigned * non_zero_els,
+                                const FFIdxRatFunList * non_zero_functions);
+
+  // Generate the input JSON file for ffAlgJSONSparseLSolve()
+  FFStatus ffSparseSystemToJSON(FFCStr file,
+                                unsigned n_eqs, unsigned n_vars, unsigned n_params,
+                                const unsigned * needed_vars, unsigned n_needed_vars,
+                                const FFCStr * eq_json_files, unsigned n_files);
 
   /* API end */
 

@@ -850,6 +850,53 @@ namespace fflow {
       out << "]";
     }
 
+    bool json_write_sparse_eq_impl(std::ofstream & out,
+                                   const MPReconstructedRatFun * fun,
+                                   unsigned n_funs,
+                                   unsigned this_eq_len,
+                                   unsigned n_params,
+                                   const unsigned * eqs_nonzero_vars,
+                                   const std::size_t * eqs_nonzero_coeffs)
+    {
+      // eq. length
+      out << "[";
+      out << this_eq_len;
+      out << ",[";
+
+      // variables
+      for (unsigned j = 0; j<this_eq_len; ++j) {
+        if (j)
+          out << ",";
+        out << eqs_nonzero_vars[j];
+      }
+      out << "],[";
+
+      // coefficients
+      for (unsigned j = 0; j<this_eq_len; ++j) {
+
+        if (j)
+          out << ",";
+
+        const unsigned fun_idx = eqs_nonzero_coeffs[j];
+
+        if (fun_idx >= n_funs) {
+          logerr("Function index out of bounds");
+          return false;
+        }
+
+        if (fun[fun_idx].numerator().size() == 0) {
+          logerr("Zero coefficient not allowed in sparse system");
+          return false;
+        }
+
+        json_write_ratfun_impl(out, fun[fun_idx], n_params);
+
+      }
+      out << "]]";
+
+      return true;
+    }
+
   } // namespace
 
   Ret json_write_ratfun(const char * file,
@@ -897,6 +944,94 @@ namespace fflow {
         if (j)
           out << ",";
         out << list[j];
+      }
+      out << "]";
+    }
+    out << "]";
+
+    return SUCCESS;
+  }
+
+  Ret json_write_sparse_eqs(const char * filename,
+                            const MPReconstructedRatFun * fun,
+                            unsigned n_funs,
+                            unsigned n_params,
+                            unsigned n_eqs,
+                            const unsigned * eqs_len,
+                            const unsigned * eqs_nonzero_vars,
+                            const std::size_t * eqs_nonzero_coeffs)
+  {
+    std::ofstream out(filename);
+    if (out.fail())
+      return FAILED;
+
+    out << "[";
+    out << n_eqs;
+    out << ",[";
+
+    for (unsigned eq_no=0; eq_no<n_eqs; ++eq_no) {
+
+      if (eq_no)
+        out << ",";
+
+      const unsigned this_eq_len = eqs_len[eq_no];
+
+      if (!json_write_sparse_eq_impl(out, fun, n_funs, this_eq_len, n_params,
+                                     eqs_nonzero_vars, eqs_nonzero_coeffs))
+        return FAILED;
+
+      eqs_nonzero_vars += this_eq_len;
+      eqs_nonzero_coeffs += this_eq_len;
+    }
+
+    out << "]]";
+
+    return SUCCESS;
+  }
+
+
+  Ret json_write_sparse_system(const char * filename,
+                               unsigned n_eqs, unsigned n_vars,
+                               unsigned n_params,
+                               const unsigned * needed_vars,
+                               unsigned n_needed_vars,
+                               const char * const * eq_json_files,
+                               unsigned n_files)
+  {
+    std::ofstream out(filename);
+    if (out.fail())
+      return FAILED;
+
+    out << "[";
+    out << n_eqs;
+    out << ",";
+    out << n_vars;
+    out << ",";
+    out << n_params;
+    out << ",";
+    out << n_needed_vars;
+    out << ",";
+    {
+      // needed vars
+      out << "[";
+      for (unsigned j=0; j<n_needed_vars; ++j) {
+        if (j)
+          out << ",";
+        out << needed_vars[j];
+      }
+      out << "]";
+    }
+    out << ",";
+    out << n_files;
+    out << ",";
+    {
+      // files
+      out << "[";
+      for (unsigned j=0; j<n_files; ++j) {
+        if (j)
+          out << ",";
+        // TODO: we should probably escape the string here
+        out << "\"" << eq_json_files[j] << "\"";
       }
       out << "]";
     }
