@@ -104,13 +104,15 @@ If[Not[MemberQ[$Path,$FiniteFlowPath]],$Path = Flatten[{$Path, $FiniteFlowPath }
 ```
 
 
-Tutorial and FAQ
-----------------
+Tutorials, examples and FAQ
+---------------------------
 
 A tutorial using the Mathematica interface is included, in the file
 [mathlink/tutorial.wl](mathlink/tutorial.wl).  Tutorials using the
 Python interface are included in the directory
 [pythonapi/tutorials](pythonapi/tutorials/README.md).
+
+Additional packages and examples are in the repositories [finiteflow-mathtools](https://github.com/peraro/finiteflow-mathtools), [finiteflow-pytools](https://github.com/peraro/finiteflow-pytools) and [ff_native_ext_template](https://github.com/peraro/ff_native_ext_template).
 
 A list of frequently asked questions is in the file [FAQ.md](FAQ.md).
 We kindly ask users to read it before reporting an issue.
