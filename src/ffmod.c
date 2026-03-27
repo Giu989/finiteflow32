@@ -1,12 +1,40 @@
-#include <flint.h>
-#include <ulong_extras.h>
+#if FFLOW_USE_FLINT
+# include <flint.h>
+# include <ulong_extras.h>
+#endif
 #include "fflow/ffmod.h"
 
+#if FFLOW_USE_FLINT
 
 FFU64 ffMulInverseMod(FFU64 z, FFMod p)
 {
   return n_invmod(z, p.n);
 }
+
+#else
+
+FFU64 ffMulInverseMod(FFU64 z, FFMod p)
+{
+  FFI64 t=0, newt = 1;
+  FFU64 r=p.n, newr = z;
+
+  while (newr) {
+    const FFU64 q = r / newr;
+    const FFI64 tmp_t = t - q*newt;
+    t = newt;
+    newt = tmp_t;
+    const FFU64 tmp_r = r - q * newr;
+    r = newr;
+    newr = tmp_r;
+  }
+
+  if (t<0)
+    t += p.n;
+
+  return t;
+}
+
+#endif
 
 FFU64 ffDivMod(FFU64 num, FFU64 den, FFMod p)
 {

@@ -57,10 +57,22 @@ endif("${isSystemDir}" STREQUAL "-1")
 
 # external dependencies
 
-find_package(FLINT REQUIRED)
-include_directories(SYSTEM ${FLINT_INCLUDE_DIRS})
-include_directories(SYSTEM ${FLINT_INCLUDE_DIRS}/flint)
-set(LIBS ${LIBS} ${FLINT_TARGETS})
+set(FFLOW_USE_FLINT ON CACHE BOOL
+    "Use FLINT to compute multiplicative inverses")
+if (FFLOW_USE_FLINT)
+    find_package(FLINT)
+    if (FLINT_LIBRARY)
+        include_directories(SYSTEM ${FLINT_INCLUDE_DIRS})
+        include_directories(SYSTEM ${FLINT_INCLUDE_DIRS}/flint)
+        set(LIBS ${LIBS} ${FLINT_TARGETS})
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DFFLOW_USE_FLINT=1")
+    else()
+        message("-- FLINT not found")
+    endif()
+endif()
+if (NOT FLINT_LIBRARY)
+    set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -DFFLOW_USE_FLINT=0")
+endif()
 
 find_package(GMP REQUIRED)
 include_directories(SYSTEM ${GMP_INCLUDE_DIRS})
