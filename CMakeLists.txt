@@ -92,6 +92,7 @@ include_directories(
     BEFORE
     ${CMAKE_CURRENT_SOURCE_DIR}/src
     ${CMAKE_CURRENT_SOURCE_DIR}/include
+    ${PROJECT_BINARY_DIR}/include
     )
 
 set(FFLOW_SOURCES
@@ -151,7 +152,7 @@ set(FFLOW_SOURCES
     )
 
 set(FFLOW_HEADERS
-    include/fflow/config.hh
+    ${PROJECT_BINARY_DIR}/include/fflow/config.hh
 
     include/fflow/common.hh
     include/fflow/small_vector.hh
