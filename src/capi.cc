@@ -1659,15 +1659,28 @@ extern "C" {
   FFStatus ffLSolveOutputIsSparse(FFGraph graph, FFNode node)
   {
     Algorithm * alg = session.algorithm(graph, node);
-    if (!alg || !alg->is_mutable())
+    if (!alg)
       return FF_ERROR;
 
-    if (dynamic_cast<SparseLinearSolver *>(alg)) {
-      SparseLinearSolver & ls = *static_cast<SparseLinearSolver *>(alg);
+    if (dynamic_cast<const SparseLinearSolver *>(alg)) {
+      auto & ls = *static_cast<const SparseLinearSolver *>(alg);
       return ls.output_is_sparse();
     }
 
     return FF_ERROR;
+  }
+
+  FFStatus ffIsSparseLSolve(FFGraph graph, FFNode node)
+  {
+    Algorithm * alg = session.algorithm(graph, node);
+    if (!alg)
+      return FF_ERROR;
+
+    if (dynamic_cast<const SparseLinearSolver *>(alg)) {
+      return true;
+    } else {
+      return false;
+    }
   }
 
   FFStatus ffLSolveOptimizeZeroVars(FFGraph graph, FFNode node)
@@ -3257,6 +3270,127 @@ extern "C" {
     if (ret != SUCCESS)
       return FF_ERROR;
     return FF_SUCCESS;
+  }
+
+
+  FFNode ffAlgAnalyticDenseLSolve(FFGraph graph, FFNode in_node,
+                                  unsigned n_eqs, unsigned n_vars,
+                                  const FFRatFunList * rat_functions,
+                                  const unsigned * needed_vars,
+                                  unsigned n_needed_vars)
+  {
+    typedef AnalyticDenseSolverData Data;
+    std::unique_ptr<AnalyticDenseSolver> algptr(new AnalyticDenseSolver());
+    std::unique_ptr<Data> dataptr(new Data());
+    auto & sys = *algptr;
+    auto & data = *dataptr;
+
+    const unsigned n_rows = n_eqs;
+    const std::size_t n_functions = rat_functions->n_functions;
+    if (n_functions != n_rows*(n_vars+1)) {
+      logerr("Number of entries in dense system must be n_rows*(n_vars+1)");
+      return FF_ERROR;
+    }
+
+    data.c.resize(n_rows, n_vars+1);
+    sys.cmap.resize(n_rows, n_vars+1);
+
+    for (unsigned i=0; i<n_rows; ++i)
+      for (unsigned j=0; j<n_vars+1; ++j) {
+        get_horner_ratfun(rat_functions, i*(n_vars+1)+j,
+                          data.c(i,j), sys.cmap(i,j),
+                          session.main_context()->ww);
+      }
+
+    sys.nparsin.resize(1);
+    sys.nparsin[0] = rat_functions->n_vars;
+
+    if (needed_vars) {
+      sys.init(n_eqs, n_vars, needed_vars, n_needed_vars, data);
+    } else {
+      unsigned * needed = (unsigned*)malloc(n_vars*sizeof(*needed));
+      std::iota(needed, needed+n_vars, 0);
+      sys.init(n_eqs, n_vars, needed, n_vars, data);
+      free(needed);
+    }
+
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    unsigned id = g->new_node(std::move(algptr), std::move(dataptr),
+                              &in_node);
+    return id;
+  }
+
+  FFNode ffAlgNumericDenseLSolve(FFGraph graph,
+                                 unsigned n_eqs, unsigned n_vars,
+                                 const FFCStr * rat_nums,
+                                 const unsigned * needed_vars,
+                                 unsigned n_needed_vars)
+  {
+    typedef NumericDenseSolverData Data;
+    std::unique_ptr<NumericDenseSolver> algptr(new NumericDenseSolver());
+    std::unique_ptr<Data> dataptr(new Data());
+    auto & sys = *algptr;
+    auto & data = *dataptr;
+
+    const unsigned n_rows = n_eqs;
+    sys.c.resize(n_rows, n_vars+1);
+
+    for (unsigned i=0; i<n_rows; ++i)
+      for (unsigned j=0; j<n_vars+1; ++j)
+        sys.c(i,j).set(rat_nums[i*(n_vars+1) + j]);
+
+    sys.nparsin.resize(0);
+
+    if (needed_vars) {
+      sys.init(n_rows, n_vars, needed_vars, n_needed_vars, data);
+    } else {
+      unsigned * needed = (unsigned*)malloc(n_vars*sizeof(*needed));
+      std::iota(needed, needed+n_vars, 0);
+      sys.init(n_rows, n_vars, needed, n_vars, data);
+      free(needed);
+    }
+
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    unsigned id = g->new_node(std::move(algptr), std::move(dataptr), nullptr);
+    return id;
+  }
+
+  FFNode ffAlgNodeDenseLSolve(FFGraph graph, FFNode in_node,
+                              unsigned n_eqs, unsigned n_vars,
+                              const unsigned * needed_vars,
+                              unsigned n_needed_vars)
+  {
+    typedef NodeDenseSolverData Data;
+    std::unique_ptr<NodeDenseSolver> algptr(new NodeDenseSolver());
+    std::unique_ptr<Data> dataptr(new Data());
+    auto & sys = *algptr;
+    auto & data = *dataptr;
+
+    sys.nparsin.resize(1);
+    sys.nparsin[0] = n_eqs * (n_vars+1);
+
+    if (needed_vars) {
+      sys.init(n_eqs, n_vars, needed_vars, n_needed_vars, data);
+    } else {
+      unsigned * needed = (unsigned*)malloc(n_vars*sizeof(*needed));
+      std::iota(needed, needed+n_vars, 0);
+      sys.init(n_eqs, n_vars, needed, n_vars, data);
+      free(needed);
+    }
+
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    unsigned id = g->new_node(std::move(algptr), std::move(dataptr),
+                              &in_node);
+    return id;
   }
 
 } // extern "C"

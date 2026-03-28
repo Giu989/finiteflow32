@@ -597,6 +597,11 @@ def LSolveIsImpossible(graph,node):
     return ret == 1
 
 
+def IsSparseLSolve(graph,node):
+    ret = _Check(_lib.ffIsSparseLSolve(graph, node))
+    return ret == 1
+
+
 def LSolveOutputIsSparse(graph,node):
     ret = _Check(_lib.ffLSolveOutputIsSparse(graph, node))
     return ret == 1
@@ -813,6 +818,47 @@ def AlgAnalyticSparseLSolveEx(graph, in_nodes, n_vars,
                       list(_Flattened(nonzero_wgs)),
                       non_zero_coeffs._ptr,
                       needed, neededlen)
+    return _Check(retc)
+
+
+def AlgAnalyticDenseLSolve(graph, in_node, n_eqs, n_vars,
+                           coeffs, needed_vars = None):
+    needed = needed_vars
+    if needed is None:
+        needed = _ffi.NULL
+        neededlen = 0
+    else:
+        neededlen = len(needed)
+    retc = _lib.ffAlgAnalyticDenseLSolve(graph, in_node,
+                                         n_eqs, n_vars, coeffs._ptr,
+                                         needed, neededlen)
+    return _Check(retc)
+
+def AlgNumericDenseLSolve(graph, n_eqs, n_vars, coeffs,
+                          needed_vars = None):
+    needed = needed_vars
+    if needed is None:
+        needed = _ffi.NULL
+        neededlen = 0
+    else:
+        neededlen = len(needed)
+    if len(coeffs) != n_eqs * (n_vars+1):
+        raise ValueError("The length of coeffs must be n_eqs * (n_vars+1).")
+    c_coeffs = [_ffi.new("char[]", c.encode('utf8')) for c in coeffs]
+    retc = _lib.ffAlgNumericDenseLSolve(graph, n_eqs, n_vars, c_coeffs,
+                                        needed, neededlen)
+    return _Check(retc)
+
+def AlgNodeDenseLSolve(graph, in_node, n_eqs, n_vars,
+                       needed_vars = None):
+    needed = needed_vars
+    if needed is None:
+        needed = _ffi.NULL
+        neededlen = 0
+    else:
+        neededlen = len(needed)
+    retc = _lib.ffAlgNodeDenseLSolve(graph, in_node, n_eqs, n_vars,
+                                     needed, neededlen)
     return _Check(retc)
 
 

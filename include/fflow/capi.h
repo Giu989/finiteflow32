@@ -371,6 +371,28 @@ extern "C" {
                             const unsigned * functions_len,
                             unsigned n_functions);
 
+  // For a dense solver, the length of rat_functions must be
+  // n_eqs*(n_vars+1).
+  FFNode ffAlgAnalyticDenseLSolve(FFGraph graph, FFNode in_node,
+                                  unsigned n_eqs, unsigned n_vars,
+                                  const FFRatFunList * rat_functions,
+                                  const unsigned * needed_vars,
+                                  unsigned n_needed_vars);
+
+  // The length of rat_nums must be n_eqs*(n_vars+1).
+  FFNode ffAlgNumericDenseLSolve(FFGraph graph,
+                                 unsigned n_eqs, unsigned n_vars,
+                                 const FFCStr * rat_nums,
+                                 const unsigned * needed_vars,
+                                 unsigned n_needed_vars);
+
+  // Same as ffAlgAnalyticDenseLSolve but the entries of (A|b) are
+  // taken from the input node in_node.
+  FFNode ffAlgNodeDenseLSolve(FFGraph graph, FFNode in_node,
+                              unsigned n_eqs, unsigned n_vars,
+                              const unsigned * needed_vars,
+                              unsigned n_needed_vars);
+
 
   /////////////////////////////
   // Info about learned algs //
@@ -400,7 +422,7 @@ extern "C" {
 
 
   ////////////////////
-  // Sparse systems //
+  // Linear systems //
   ////////////////////
 
   FFStatus ffLSolveNEqsNVars(FFGraph graph, FFNode node, unsigned res[]);
@@ -408,30 +430,11 @@ extern "C" {
                                    const unsigned * vars, unsigned n_vars);
   FFStatus ffLSolveOnlyHomogeneous(FFGraph graph, FFNode node);
   FFStatus ffLSolveOnlyNonHomogeneous(FFGraph graph, FFNode node);
-  FFStatus ffLSolveSparseOutput(FFGraph graph, FFNode node, bool sparse);
-  FFStatus ffLSolveSparseOutputWithMaxCol(FFGraph graph, FFNode node,
-                                          unsigned max_col,
-                                          bool back_substitution,
-                                          bool keep_full_output);
-  FFStatus ffLSolveEqWeight(FFGraph graph, FFNode node, const int * eq_weight);
-  FFStatus ffLSolveMarkAndSweepEqs(FFGraph graph, FFNode node);
-
-  // Only for Analytic and Numeric solvers (fails for Node solvers)
-  FFStatus ffLSolveDeleteUnneededEqs(FFGraph graph, FFNode node);
 
   // Check if system is impossible (the system needs to have completed
   // learning before this call).  Returns 1 is system is impossible, 0
   // if it is not and FF_ERROR if an error occurred.
   unsigned ffLSolveIsImpossible(FFGraph graph, FFNode node);
-
-  // Detect and remove zero unknowns from linear system
-  FFStatus ffLSolveOptimizeZeroVars(FFGraph graph, FFNode node);
-
-  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
-  FFStatus ffLSolveIsOptimizingZeroVars(FFGraph graph, FFNode node);
-
-  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
-  unsigned ffLSolveOutputIsSparse(FFGraph graph, FFNode node);
 
   // no. of dependent unknowns
   unsigned ffLSolveNDepVars(FFGraph graph, FFNode node);
@@ -465,6 +468,32 @@ extern "C" {
   // length.  The allocated array can be freed using ffFreeMemoryU32.
   FFStatus ffLSolveZeroVars(FFGraph graph, FFNode node,
                             unsigned ** zerovars, unsigned * n_zerovars);
+
+  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
+  FFStatus ffIsSparseLSolve(FFGraph graph, FFNode node);
+
+
+  // The next ones are only for sparse systems
+
+  FFStatus ffLSolveSparseOutput(FFGraph graph, FFNode node, bool sparse);
+  FFStatus ffLSolveSparseOutputWithMaxCol(FFGraph graph, FFNode node,
+                                          unsigned max_col,
+                                          bool back_substitution,
+                                          bool keep_full_output);
+  FFStatus ffLSolveEqWeight(FFGraph graph, FFNode node, const int * eq_weight);
+  FFStatus ffLSolveMarkAndSweepEqs(FFGraph graph, FFNode node);
+
+  // Only for Analytic and Numeric solvers (fails for Node solvers)
+  FFStatus ffLSolveDeleteUnneededEqs(FFGraph graph, FFNode node);
+
+  // Detect and remove zero unknowns from linear system
+  FFStatus ffLSolveOptimizeZeroVars(FFGraph graph, FFNode node);
+
+  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
+  FFStatus ffLSolveIsOptimizingZeroVars(FFGraph graph, FFNode node);
+
+  // Output: 0 if false, 1 if true, FF_ERROR if an error occurred.
+  unsigned ffLSolveOutputIsSparse(FFGraph graph, FFNode node);
 
 
   ////////////////////////////////

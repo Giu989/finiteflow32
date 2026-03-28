@@ -213,8 +213,8 @@ def testBasicRatFunInterface():
     print("- Test passed!")
 
 
-def testLSolver(type):
-    print("Test {} linear solver".format(type))
+def testLSolver(type, sparse):
+    print("Test {} {} linear solver".format("sparse" if sparse else "dense", type))
 
     # Solving:
     # [ (a1 + a2) x + (a1 - a2) y == a1/a2,
@@ -238,31 +238,48 @@ def testLSolver(type):
             "3", "-1", "1/2",
             "1", "1/2"
         ]
+    if not sparse:
+        coeffs.append("0")
+
     cols = [[0,1,2], [0,1]] # non-zero columns for each row
+    n_eqs = 2
     n_unknowns = 2
 
     if type == "analytic":
         mygraph, myinput = NewGraphWithInput(len(["a1", "a2"]))
-        ccs = ParseIdxRatFun(["a1", "a2"], coeffs)
-        sys = AlgAnalyticSparseLSolve(mygraph, myinput, n_unknowns, cols, ccs)
+        if sparse:
+            ccs = ParseIdxRatFun(["a1", "a2"], coeffs)
+            sys = AlgAnalyticSparseLSolve(mygraph, myinput, n_unknowns, cols, ccs)
+        else:
+            ccs = ParseRatFun(["a1", "a2"], coeffs)
+            sys = AlgAnalyticDenseLSolve(mygraph, myinput, n_eqs, n_unknowns, ccs)
     elif type == "node":
         mygraph, myinput = NewGraphWithInput(len(["a1", "a2"]))
         ccs = ParseRatFun(["a1", "a2"], coeffs)
         rf = AlgRatFunEval(mygraph, myinput, ccs)
-        sys = AlgNodeSparseLSolve(mygraph, rf, n_unknowns, cols)
+        if sparse:
+            sys = AlgNodeSparseLSolve(mygraph, rf, n_unknowns, cols)
+        else:
+            sys = AlgNodeDenseLSolve(mygraph, rf, n_eqs, n_unknowns)
     else:
         mygraph = NewGraph()
-        sys = AlgNumericSparseLSolve(mygraph, n_unknowns, cols, coeffs)
+        if sparse:
+            sys = AlgNumericSparseLSolve(mygraph, n_unknowns, cols, coeffs)
+        else:
+            sys = AlgNumericDenseLSolve(mygraph, n_eqs, n_unknowns, coeffs)
+
     SetOutputNode(mygraph,sys)
     Learn(mygraph)
+
     if LSolveDepVars(mygraph,sys) != [0,1]:
         print("- Dep vars = ",LSolveDepVars(mygraph,sys))
         print("- Test failed: something wrong with the system")
         exit(1)
 
-    LSolveMarkAndSweepEqs(mygraph, sys)
-    if type == "analytic" or type == "numeric":
-        LSolveDeleteUnneededEqs(mygraph, sys)
+    if sparse:
+        LSolveMarkAndSweepEqs(mygraph, sys)
+        if type == "analytic" or type == "numeric":
+            LSolveDeleteUnneededEqs(mygraph, sys)
 
     if type == "analytic" or type == "node":
         rec = ReconstructFunction(mygraph)
@@ -625,9 +642,12 @@ if __name__ == '__main__':
     testParsing()
     testTutorial2()
     testBasicRatFunInterface()
-    testLSolver("analytic")
-    testLSolver("node")
-    testLSolver("numeric")
+    testLSolver("analytic",True)
+    testLSolver("node",True)
+    testLSolver("numeric",True)
+    testLSolver("analytic",False)
+    testLSolver("node",False)
+    testLSolver("numeric",False)
     testLSolverEx()
     testLaurent()
     testLists()
