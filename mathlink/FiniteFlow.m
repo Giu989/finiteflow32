@@ -200,6 +200,7 @@ FF::badrational = "Argument `1` is not a rational number."
 FF::badfun = "Argument is not a polynomial or a rational function in the specified variables `1` with rational coefficients."
 FF::badfunarg = "Argument `1` is not a polynomial or a rational function in the specified variables `2` with rational coefficients."
 FF::badfuncoeff = "Argument `1` is not a polynomial or a rational function in the specified variables `2` with the specified coefficients."
+FF::badpolycoeff = "Polynomial coefficient `1` is not valid."
 FF::badvars = "`1` is not a non-empty list of variables."
 FF::badsystem = "Argument is not a list of equalities."
 FF::badbooleanflag = "The option `1` must be True, False or Automatic."
@@ -308,12 +309,6 @@ PolyCoefficientRules[poly_,vars_] :=  If[AllTrue[#,FFRationalQ[#[[2]]]&],
                                        ]&[FFCoefficientRules[poly,vars]];
 
 
-PolyCoefficientRulesCoeffMap[poly_,vars_,map_] :=  If[SubsetQ[Keys[map],(#[[2]]&/@#)],
-                                                    #,
-                                                    Message[FF::badfuncoeff, poly, vars]; Throw[$Failed]
-                                                    ]&[FFCoefficientRules[poly,vars]];
-
-
 LinearEqCoeffs[expr_, vars_, applyfun_] := Module[
     {res, nvars},
     nvars = Length[vars];
@@ -372,7 +367,9 @@ toFFInternalRatFun[ratfun_,vars_] := {toFFInternalPoly[Numerator[ratfun],vars],t
 toFFInternalRatFun[0,vars_] := {Length[vars]}; (* optimization \[Rule] this represents a vanishing function *)
 
 
-toFFInternalPolyCoeffMap[poly_,vars_,coeffmap_] := Check[({#[[1]],coeffmap[#[[2]]]})&/@PolyCoefficientRulesCoeffMap[poly, vars, coeffmap],Message[FF::badfun,vars]; Throw[$Failed]];
+checkcmap[i_Integer]:=i;
+checkcmap[i_]:=(Message[FF::badpolycoeff,i[[2]]];Throw[$Failed]);
+toFFInternalPolyCoeffMap[poly_,vars_,coeffmap_] := Check[({#[[1]],checkcmap[coeffmap[#[[2]]]]})&/@FFCoefficientRules[poly, vars],Message[FF::badfun,vars]; Throw[$Failed]];
 toFFInternalRatFunCoeffMap[ratfun_,vars_,coeffmap_] := {toFFInternalPolyCoeffMap[Numerator[ratfun],vars,coeffmap],toFFInternalPolyCoeffMap[Denominator[ratfun],vars,coeffmap]};
 toFFInternalRatFunCoeffMap[0,vars_,coeffmap_] := {Length[vars]}; (* optimization \[Rule] this represents a vanishing function *)
 
