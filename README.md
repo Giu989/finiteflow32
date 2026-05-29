@@ -21,9 +21,8 @@ It is based on the following publication:
   using finite fields and dataflow graphs*,
   [arXiv:1905.08019](https://arxiv.org/abs/1905.08019)
 
-This implementation is written in C++ and includes a Mathematica
-interface.  The latter is currently the most usable, complete and
-documented way of using this library.
+This implementation is written in C++ and includes C, Python and
+Mathematica interfaces.
 
 
 Installation
@@ -47,13 +46,14 @@ many Linux distributions and on Homebrew for macOS.  For more
 information see [https://gmplib.org/](https://gmplib.org/).
 
 
-#### FLINT
+#### FLINT (optional)
 
-FiniteFlow uses a few functions and macros from the FLINT library.
-For the installation of FLINT you have two options:
+FiniteFlow can optionally use the FLINT library for computing
+multiplicative inverses.  For the installation of FLINT you have two
+options:
 
 - Install the full FLINT library.  Installation packages are available
-  for some Linux distrubutions (including Debian/Ubuntu) and macOS.
+  for some Linux distributions (including Debian/Ubuntu) and macOS.
   See [http://www.flintlib.org/](http://www.flintlib.org/) for more
   information about FLINT and its installation.
 
@@ -64,6 +64,8 @@ For the installation of FLINT you have two options:
   to install from source (see the README file of
   `flint-finiteflow-dep` for more information).  You can obtain it at
   this [link](https://github.com/peraro/flint-finiteflow-dep).
+
+If FLINT is not found, FiniteFlow will be compiled without using it.  If you have FLINT installed but you want to disable it, call `cmake` with the option `-DFFLOW_USE_FLINT=0`.
 
 
 ### Installing FiniteFlow
@@ -87,6 +89,8 @@ make install
 where you can omit any of the options in order to pick a default value
 for them.
 
+In order to use the Python 3 interface, add the option `-DFFLOW_PYTHON=1` to the `cmake` command (note that it requires the `cffi` Python package, see [these instructions](pythonapi/README.md) for more details).
+
 In order to use FiniteFlow from the Mathematica interface, consider
 adding the following to your Mathematica `init.m` file
 ```
@@ -100,10 +104,15 @@ If[Not[MemberQ[$Path,$FiniteFlowPath]],$Path = Flatten[{$Path, $FiniteFlowPath }
 ```
 
 
-Tutorial and FAQ
-----------------
+Tutorials, examples and FAQ
+---------------------------
 
 A tutorial using the Mathematica interface is included, in the file
-[mathlink/tutorial.wl](mathlink/tutorial.wl).  A list of frequently
-asked questions, is in the file [FAQ.md](FAQ.md).  We kindly ask users
-to read it before reporting an issue.
+[mathlink/tutorial.wl](mathlink/tutorial.wl).  Tutorials using the
+Python interface are included in the directory
+[pythonapi/tutorials](pythonapi/tutorials/README.md).
+
+Additional packages and examples are in the repositories [finiteflow-mathtools](https://github.com/peraro/finiteflow-mathtools), [finiteflow-pytools](https://github.com/peraro/finiteflow-pytools) and [ff_native_ext_template](https://github.com/peraro/ff_native_ext_template).
+
+A list of frequently asked questions is in the file [FAQ.md](FAQ.md).
+We kindly ask users to read it before reporting an issue.
