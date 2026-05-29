@@ -29,19 +29,28 @@ namespace fflow {
   static_assert(sizeof(mp_limb_t) == sizeof(UInt),
                 "Flint integer type is not a 64-bit integer");
 
-  // returns 2^64 mod p, assuming 2 p < 2^64 < 3 p
+  inline bool is_u32_mod(UInt p)
+  {
+    return p && p <= 0xffffffffULL;
+  }
+
+  // returns 2^64 mod p
   inline UInt beta_mod(UInt p)
   {
+    if (is_u32_mod(p))
+      return UInt((FFU128(1) << 64) % p);
     return -(p<<1);
   }
 
 
-  // This must be initialized with a prime "p" satisfying
+  // In the upstream fast path this is initialized with a prime "p"
+  // satisfying
   //
   //    2 p < 2^64 < 3 p
   //
-  // These inequalities are assumed to be valid in the whole fflow
-  // library.
+  // FiniteFlow32 mode may instead initialize it with p < 2^32.  The
+  // modular arithmetic helpers branch on that case and use ordinary
+  // reductions for correctness.
   class Mod {
   public:
     Mod() : mod_{0,0} {}
@@ -100,6 +109,9 @@ namespace fflow {
   // faster a % mod
   inline UInt red_mod(UInt a, Mod mod)
   {
+    if (is_u32_mod(mod.n()))
+      return a % mod.n();
+
     UInt two_p = mod.n() << 1;
     return a >= two_p ? (a - two_p) : red_mod_(a, mod);
   }
@@ -495,4 +507,3 @@ namespace fflow {
 
 
 #endif // FFLOW_COMMON_HH
-

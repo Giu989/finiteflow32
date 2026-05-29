@@ -4,18 +4,24 @@
 #include <vector>
 #include <cmath>
 #include <fflow/common.hh>
+#include <fflow/primes32.hh>
 
 namespace fflow {
 
 
-  // The 2048 largest primes which fit in a 63-bit integer.  They can
+  // The default upstream table contains the 2048 largest primes which
+  // fit in a 63-bit integer.  They can
   // be generated with the following mathematica command
   //
   //    Select[2^63 - Range[89121], PrimeQ]
   //
-  // The Mod argument in the routines of these library is assumed to
-  // be initialized with one of these integers.
+  // In FFLOW_USE_UINT32_PRIMES mode, BIG_UINT_PRIMES is instead the
+  // FiniteFlow32 table of the 400 largest primes below 2^32.
+#if FFLOW_USE_UINT32_PRIMES
+  const unsigned BIG_UINT_PRIMES_SIZE = BIG_UINT32_PRIMES_SIZE;
+#else
   const unsigned BIG_UINT_PRIMES_SIZE = 2048;
+#endif
   const unsigned DEFAULT_MAX_REC_PRIMES = BIG_UINT_PRIMES_SIZE - 1;
   extern const UInt BIG_UINT_PRIMES[BIG_UINT_PRIMES_SIZE];
   //const UInt LARGEST_PRIME = BIG_UINT_PRIMES[0];

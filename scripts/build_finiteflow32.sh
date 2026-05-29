@@ -39,6 +39,7 @@ configure_args=(
   -DMATHLIBINSTALL="${mathlibinstall}"
   -DFFLOW_MATHEMATICA="${FFLOW_MATHEMATICA:-ON}"
   -DFFLOW_PYTHON="${FFLOW_PYTHON:-OFF}"
+  -DFFLOW_USE_UINT32_PRIMES="${FFLOW_USE_UINT32_PRIMES:-ON}"
 )
 
 if [[ -n "${cmake_prefix_path}" ]]; then

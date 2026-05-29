@@ -1,8 +1,8 @@
 # FiniteFlow32 Stage 1 Build and Mathematica Validation
 
-FiniteFlow32 is a fork of FiniteFlow. Stage 1 keeps the original arithmetic
-unchanged and focuses on a reproducible local build, local install, renamed
-public-facing artifacts, and automated Mathematica validation.
+FiniteFlow32 is a fork of FiniteFlow. The initial pipeline focuses on a
+reproducible local build, local install, renamed public-facing artifacts,
+32-bit-prime mode, and automated Mathematica validation.
 
 ## Dependencies
 
@@ -44,6 +44,16 @@ To disable FLINT explicitly:
 FFLOW_USE_FLINT=OFF PREFIX="$PWD/_install/finiteflow32" ./scripts/build_finiteflow32.sh
 ```
 
+The FiniteFlow32 build script enables the 32-bit prime table by default with
+`FFLOW_USE_UINT32_PRIMES=ON`. To build the preserved upstream 63-bit prime path
+from this fork, override it explicitly:
+
+```bash
+FFLOW_USE_UINT32_PRIMES=OFF \
+PREFIX="$PWD/_install/finiteflow32-63bit" \
+./scripts/build_finiteflow32.sh
+```
+
 ## Build
 
 From a clean checkout:
@@ -75,7 +85,19 @@ Run the tutorial-derived integration test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_tutorial.sh
 ```
 
-Run the full Stage 1 validation pipeline:
+Run the native finiteflow32 arithmetic test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_finiteflow32_arithmetic.sh
+```
+
+Run the Mathematica multi-prime reconstruction test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_multiprime.sh
+```
+
+Run the full validation pipeline:
 
 ```bash
 PREFIX="$PWD/_install/finiteflow32" ./validate_finiteflow32.sh

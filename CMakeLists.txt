@@ -22,6 +22,9 @@ set(CMAKE_WINDOWS_EXPORT_ALL_SYMBOLS ON)
 set(FFLOW_ENABLE_EXCEPTIONS OFF CACHE BOOL
     "Do not add compiler flags disabling exceptions")
 
+set(FFLOW_USE_UINT32_PRIMES OFF CACHE BOOL
+    "Use the FiniteFlow32 table of 32-bit primes instead of the upstream 63-bit table")
+
 if(NOT(FFLOW_ENABLE_EXCEPTIONS))
     if(MSVC)
         add_compile_options($<$<COMPILE_LANGUAGE:CXX>:/EHs-c->)
@@ -167,6 +170,7 @@ set(FFLOW_HEADERS
     include/fflow/multivariate_reconstruction_details.hh
     include/fflow/polynomial.hh
     include/fflow/primes.hh
+    include/fflow/primes32.hh
     include/fflow/rational_function.hh
     include/fflow/univariate_reconstruction.hh
     include/fflow/ratfun_parser.hh
@@ -230,6 +234,7 @@ install(TARGETS finiteflow32 ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUN
 set(TEST_TARGETS
     testjson
     testbench
+    testfiniteflow32_arithmetic
     )
 
 set(TEST_CTARGETS

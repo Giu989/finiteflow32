@@ -15,12 +15,12 @@ FFU64 ffMulInverseMod(FFU64 z, FFMod p)
 
 FFU64 ffMulInverseMod(FFU64 z, FFMod p)
 {
-  FFI64 t=0, newt = 1;
+  __int128 t=0, newt = 1;
   FFU64 r=p.n, newr = z;
 
   while (newr) {
     const FFU64 q = r / newr;
-    const FFI64 tmp_t = t - q*newt;
+    const __int128 tmp_t = t - (__int128)q*newt;
     t = newt;
     newt = tmp_t;
     const FFU64 tmp_r = r - q * newr;
@@ -31,7 +31,7 @@ FFU64 ffMulInverseMod(FFU64 z, FFMod p)
   if (t<0)
     t += p.n;
 
-  return t;
+  return (FFU64)t;
 }
 
 #endif
@@ -43,6 +43,7 @@ FFU64 ffDivMod(FFU64 num, FFU64 den, FFMod p)
 
 
 // Instantiate inline functions
+extern inline int ffIsU32Mod(FFMod p);
 extern inline FFMod ffPrecomputedReciprocalMod(FFU64 n);
 extern inline FFU64 ffDiv2Mod1(FFU128 z, FFMod p);
 extern inline void ffDiv2By1(FFU128 z, FFMod p, FFU64 * quo, FFU64 * rem);

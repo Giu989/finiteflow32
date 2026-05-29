@@ -1,4 +1,5 @@
 #include <fflow/primes.hh>
+#include <fflow/primes32.hh>
 #include <cmath>
 
 namespace fflow {
@@ -65,8 +66,18 @@ namespace fflow {
 
 namespace fflow {
 
+  const UInt BIG_UINT32_PRIMES[BIG_UINT32_PRIMES_SIZE] = {
+#include "ff_prime32_list.hh"
+  };
+
+#if FFLOW_USE_UINT32_PRIMES
+  const UInt BIG_UINT_PRIMES[BIG_UINT_PRIMES_SIZE] = {
+#include "ff_prime32_list.hh"
+  };
+#else
   const UInt BIG_UINT_PRIMES[BIG_UINT_PRIMES_SIZE] = {
 #include "ff_prime_list.hh"
   };
+#endif
 
 } // namespace fflow

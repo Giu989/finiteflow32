@@ -1,6 +1,8 @@
 /*
- * We use 63-bit primes, satisfying 2p < 2^64 < 3p.  This assumption
- * is made everywhere.
+ * The upstream fast path uses 63-bit primes satisfying
+ * 2p < 2^64 < 3p.  FiniteFlow32 also supports primes below 2^32 by
+ * taking explicit small-prime branches which use ordinary modular
+ * arithmetic for correctness.
  */
 
 #ifndef FF_MOD_H
@@ -61,6 +63,11 @@ extern "C" {
 
   // Implementation of inline functions
 
+  inline int ffIsU32Mod(FFMod p)
+  {
+    return p.n && p.n <= 0xffffffffULL;
+  }
+
 
   /*
    * The next three functions are based on
@@ -77,6 +84,11 @@ extern "C" {
 
   inline FFMod ffPrecomputedReciprocalMod(FFU64 n)
   {
+    if (n && n <= 0xffffffffULL) {
+      FFMod res = {n, 0};
+      return res;
+    }
+
     FFU64 p = n << 1;
     FFU128HL hl;
     hl.z = ~(FFU128)(0);
@@ -88,6 +100,9 @@ extern "C" {
 
   inline FFU64 ffDiv2Mod1(FFU128 z, FFMod p)
   {
+    if (ffIsU32Mod(p))
+      return (FFU64)(z % p.n);
+
     FFU128HL u, q;
     FFU64 n = p.n << 1;
     u.z = z << 1;
@@ -105,6 +120,13 @@ extern "C" {
 
   inline void ffDiv2By1(FFU128 z, FFMod p, FFU64 * quo, FFU64 * rem)
   {
+    if (ffIsU32Mod(p)) {
+      *quo = (FFU64)(z / p.n);
+      if (rem)
+        *rem = (FFU64)(z % p.n);
+      return;
+    }
+
     FFU128HL u, q;
     FFU64 n = p.n << 1;
     u.z = z << 1;
@@ -126,12 +148,18 @@ extern "C" {
 
   inline FFU64 ffMulMod(FFU64 a, FFU64 b, FFMod p)
   {
+    if (ffIsU32Mod(p))
+      return (FFU64)(((FFU128)(a % p.n) * (b % p.n)) % p.n);
+
     FFU128 z = (FFU128)(a) * b;
     return ffDiv2Mod1(z, p);
   }
 
   inline FFU64 ffAddMod(FFU64 a, FFU64 b, FFMod p)
   {
+    if (ffIsU32Mod(p))
+      return (FFU64)(((FFU128)(a % p.n) + (b % p.n)) % p.n);
+
 #if !defined(__arm64__) && !defined(__arm64)
     FFU64 ret = a + b - p.n;
     return (FFI64)(ret) < 0 ? ret + p.n : ret;
@@ -143,6 +171,12 @@ extern "C" {
 
   inline FFU64 ffSubMod(FFU64 a, FFU64 b, FFMod p)
   {
+    if (ffIsU32Mod(p)) {
+      FFU64 ar = a % p.n;
+      FFU64 br = b % p.n;
+      return ar >= br ? ar - br : ar + p.n - br;
+    }
+
 #if !defined(__arm64__) && !defined(__arm64)
     FFI64 ret = a - b;
     return (FFI64)(ret) < 0 ? ret + p.n : ret;
@@ -154,6 +188,12 @@ extern "C" {
   // a + b*c mod p
   inline FFU64 ffAPBCMod(FFU64 a, FFU64 b, FFU64 c, FFMod p)
   {
+    if (ffIsU32Mod(p)) {
+      FFU64 br = b % p.n;
+      FFU64 cr = c % p.n;
+      return (FFU64)(((a % p.n) + ((FFU128)br * cr) % p.n) % p.n);
+    }
+
     FFU128 z = (FFU128)(b) * c + a;
     return ffDiv2Mod1(z, p);
   }
@@ -177,6 +217,9 @@ extern "C" {
 
   inline FFU64 ffPrecomputedMulShoup(FFU64 w, FFMod p)
   {
+    if (ffIsU32Mod(p))
+      return 0;
+
     FFU128HL hl;
     hl.high = w;
     hl.low = 0;
@@ -188,6 +231,9 @@ extern "C" {
 
   inline FFU64 ffMulShoup(FFU64 t, FFU64 w, FFU64 wp, FFMod p)
   {
+    if (ffIsU32Mod(p))
+      return ffMulMod(t, w, p);
+
     FFU128HL q;
     q.z = (FFU128)(wp) * t;
 
