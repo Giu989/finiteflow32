@@ -22,6 +22,8 @@ config.hh.in.*
 *.dSYM
 compile_commands.json
 .cache
+_build/
+_install/
 
 CMakeCache.txt
 CMakeFiles/*
@@ -50,5 +52,6 @@ testjson
 # these files are generated
 tests_json/tinvsys.json
 pythonapi/_cffi_fflow.c
+pythonapi/_cffi_finiteflow32.c
 pythonapi/__pycache__/*
 AGENTS.md

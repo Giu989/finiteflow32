@@ -12,11 +12,11 @@ def getFFlowPath():
         with open(str(thisfile.parent.parent / 'install_manifest.txt')) as f:
             for l in f:
                 path = pathlib.Path(l)
-                if "libfflow" in path.name:
+                if "libfiniteflow32" in path.name:
                     return path.resolve()
     except:
         pass
-    raise RuntimeError("FiniteFlow library not found")
+    raise RuntimeError("FiniteFlow32 library not found")
 
 ffibuilder = FFI()
 
@@ -36,9 +36,9 @@ if only_source:
     libraries = []
 else:
     extra_link_args = ["-L" + fflowlibdir, "-Wl,-rpath," + fflowlibdir]
-    libraries = ['fflow']
+    libraries = ['finiteflow32']
 
-ffibuilder.set_source("_cffi_fflow",
+ffibuilder.set_source("_cffi_finiteflow32",
                       r'''
                       #include <fflow/capi.h>
                       ''',
@@ -48,8 +48,8 @@ ffibuilder.set_source("_cffi_fflow",
                       )
 
 if __name__ == "__main__":
-    pathlib.Path("_cffi_fflow.c").touch()
+    pathlib.Path("_cffi_finiteflow32.c").touch()
     if not only_source:
         ffibuilder.compile(verbose=True)
     else:
-        ffibuilder.emit_c_code("_cffi_fflow.c")
+        ffibuilder.emit_c_code("_cffi_finiteflow32.c")

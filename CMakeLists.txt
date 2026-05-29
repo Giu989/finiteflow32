@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 3.12)
 
-project(finiteflow CXX C)
+project(finiteflow32 CXX C)
 
 set(FFLOW_VERSION 2)
 set(FFLOW_VERSION_MINOR 0)
@@ -209,11 +209,20 @@ set(FFLOW_HEADERS
     include/fflow/capi_custom_threads.h
     )
 
-add_library(fflow ${FFLOW_SOURCES})
-target_link_libraries(fflow ${LIBS})
+set(FFLOW_INSTALL_INCLUDEDIR "include/finiteflow32" CACHE PATH
+    "Installation path for public headers, relative to CMAKE_INSTALL_PREFIX")
+set(FFLOW_MATHEMATICA_PACKAGE_INSTALL_DIR "share/finiteflow32/mathematica"
+    CACHE PATH
+    "Installation path for the Mathematica package, relative to CMAKE_INSTALL_PREFIX")
+set(FFLOW_MATHEMATICA_LIBRARY_INSTALL_DIR "lib/finiteflow32/mathematica"
+    CACHE PATH
+    "Installation path for the Mathematica LibraryLink library, relative to CMAKE_INSTALL_PREFIX")
 
-install(FILES ${FFLOW_HEADERS} DESTINATION include/fflow)
-install(TARGETS fflow ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
+add_library(finiteflow32 ${FFLOW_SOURCES})
+target_link_libraries(finiteflow32 ${LIBS})
+
+install(FILES ${FFLOW_HEADERS} DESTINATION ${FFLOW_INSTALL_INCLUDEDIR}/fflow)
+install(TARGETS finiteflow32 ARCHIVE DESTINATION lib LIBRARY DESTINATION lib RUNTIME DESTINATION bin)
 
 
 # tests
@@ -230,13 +239,13 @@ set(TEST_CTARGETS
 foreach(target ${TEST_TARGETS})
     add_executable(${target} tests/${target}.cc)
     set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL TRUE)
-    target_link_libraries(${target} fflow ${LIBS})
+    target_link_libraries(${target} finiteflow32 ${LIBS})
 endforeach(target)
 
 foreach(target ${TEST_CTARGETS})
     add_executable(${target} tests/${target}.c)
     set_target_properties(${target} PROPERTIES EXCLUDE_FROM_ALL TRUE)
-    target_link_libraries(${target} fflow ${LIBS})
+    target_link_libraries(${target} finiteflow32 ${LIBS})
 endforeach(target)
 
 if(NOT TARGET tests)
@@ -267,20 +276,25 @@ endif()
 if (Mathematica_FOUND)
 
     include_directories(${Mathematica_INCLUDE_DIRS})
-    Mathematica_ADD_LIBRARY(fflowmlink ${FFLOW_MATHEMATICA_SOURCES})
-    target_link_libraries(fflowmlink fflow ${LIBS}
+    Mathematica_ADD_LIBRARY(finiteflow32mlink ${FFLOW_MATHEMATICA_SOURCES})
+    target_link_libraries(finiteflow32mlink finiteflow32 ${LIBS}
         ${Mathematica_MathLink_LIBRARIES})
     if (Mathematica_MathLink_LINKER_FLAGS)
-		set_target_properties(fflowmlink PROPERTIES
+		set_target_properties(finiteflow32mlink PROPERTIES
             LINK_FLAGS "${Mathematica_MathLink_LINKER_FLAGS}")
 	endif()
-    Mathematica_ABSOLUTIZE_LIBRARY_DEPENDENCIES(fflowmlink)
+    Mathematica_ABSOLUTIZE_LIBRARY_DEPENDENCIES(finiteflow32mlink)
+    install(FILES mathlink/FiniteFlow32.m
+        DESTINATION "${FFLOW_MATHEMATICA_PACKAGE_INSTALL_DIR}")
     if (MATHLIBINSTALL)
-        install(TARGETS fflowmlink
+        install(TARGETS finiteflow32mlink
             LIBRARY DESTINATION "${MATHLIBINSTALL}")
+    elseif (FFLOW_MATHEMATICA_LIBRARY_INSTALL_DIR)
+        install(TARGETS finiteflow32mlink
+            LIBRARY DESTINATION "${FFLOW_MATHEMATICA_LIBRARY_INSTALL_DIR}")
     elseif (DEFINED Mathematica_USERBASE_DIR)
         foreach (_systemID ${Mathematica_SYSTEM_IDS})
-            install(TARGETS fflowmlink
+            install(TARGETS finiteflow32mlink
                 LIBRARY DESTINATION "${Mathematica_USERBASE_DIR}/SystemFiles/LibraryResources/${_systemID}")
         endforeach()
     else()
@@ -317,32 +331,32 @@ if (FFLOW_PYTHON)
             ${Python3_EXECUTABLE}
             "${CMAKE_CURRENT_SOURCE_DIR}/pythonapi/fflow_build.py"
             "--source-only"
-            OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/_python_gen/_cffi_fflow.c"
+            OUTPUT "${CMAKE_CURRENT_BINARY_DIR}/_python_gen/_cffi_finiteflow32.c"
             WORKING_DIRECTORY "${PROJECT_BINARY_DIR}/_python_gen"
         )
         add_custom_target(
             fflow_python_interface_src ALL
             DEPENDS
-            "${PROJECT_BINARY_DIR}/_python_gen/_cffi_fflow.c"
+            "${PROJECT_BINARY_DIR}/_python_gen/_cffi_finiteflow32.c"
         )
-        Python3_add_library(_cffi_fflow
+        Python3_add_library(_cffi_finiteflow32
             MODULE
-            "${PROJECT_BINARY_DIR}/_python_gen/_cffi_fflow.c"
+            "${PROJECT_BINARY_DIR}/_python_gen/_cffi_finiteflow32.c"
         )
-        add_dependencies(_cffi_fflow fflow_python_interface_src)
-        target_link_libraries(_cffi_fflow PRIVATE fflow ${LIBS})
+        add_dependencies(_cffi_finiteflow32 fflow_python_interface_src)
+        target_link_libraries(_cffi_finiteflow32 PRIVATE finiteflow32 ${LIBS})
         if (FFLOW_PYTHON_INSTALL)
-            install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pythonapi/fflow.py"
+            install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pythonapi/finiteflow32.py"
                 DESTINATION ${FFLOW_PYTHON_INSTALL})
-            install(TARGETS _cffi_fflow
+            install(TARGETS _cffi_finiteflow32
                 DESTINATION ${FFLOW_PYTHON_INSTALL})
         else()
             execute_process(COMMAND ${Python3_EXECUTABLE} -m site --user-site
                 OUTPUT_VARIABLE FFLOW_PYTHON_USER_SITE
                 OUTPUT_STRIP_TRAILING_WHITESPACE)
-            install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pythonapi/fflow.py"
+            install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/pythonapi/finiteflow32.py"
                 DESTINATION ${FFLOW_PYTHON_USER_SITE})
-            install(TARGETS _cffi_fflow
+            install(TARGETS _cffi_finiteflow32
                 DESTINATION ${FFLOW_PYTHON_USER_SITE})
         endif()
     endif()

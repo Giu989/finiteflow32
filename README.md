@@ -1,3 +1,30 @@
+FiniteFlow32
+============
+
+FiniteFlow32 is a fork of FiniteFlow. The first project stage keeps the
+upstream arithmetic unchanged and provides a renamed, reproducible local build
+and Mathematica validation pipeline.
+
+Stage 1 commands:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/build_finiteflow32.sh
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_smoke.sh
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_tutorial.sh
+```
+
+Or run the complete build/install/test pipeline:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./validate_finiteflow32.sh
+```
+
+See [docs/finiteflow32-build.md](docs/finiteflow32-build.md) for dependency
+selection, installed layout, dynamic library handling, Mathematica validation,
+and the Stage 1 rename audit.
+
+Upstream FiniteFlow notes follow.
+
 FiniteFlow
 ==========
 

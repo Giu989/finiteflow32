@@ -44,7 +44,7 @@ namespace fflow {
   {
     MLINK link = libData->getWSLINK(libData);
     MLPutFunction(link, "EvaluatePacket", 1);
-    MLPutFunction(link, "FiniteFlow`Private`LogErr", 1);
+    MLPutFunction(link, "FiniteFlow32`Private`LogErr", 1);
     MLPutString(link, str.c_str());
     libData->processWSLINK(link);
 
@@ -487,7 +487,7 @@ namespace  {
 
   void put_alg_degree(MLINK mlp, unsigned numdeg, unsigned dendeg)
   {
-    MLPutFunction(mlp, "FiniteFlow`FFFunDeg", 2);
+    MLPutFunction(mlp, "FiniteFlow32`FFFunDeg", 2);
     MLPutInteger32(mlp, numdeg);
     MLPutInteger32(mlp, dendeg);
   }
@@ -3008,12 +3008,12 @@ extern "C" {
     if (ret != SUCCESS) {
 
       if (ret == MISSING_SAMPLES) {
-        MLPutSymbol(mlp, "FiniteFlow`FFMissingPoints");
+        MLPutSymbol(mlp, "FiniteFlow32`FFMissingPoints");
         return LIBRARY_NO_ERROR;
       }
 
       if (ret == MISSING_PRIMES) {
-        MLPutSymbol(mlp, "FiniteFlow`FFMissingPrimes");
+        MLPutSymbol(mlp, "FiniteFlow32`FFMissingPrimes");
         return LIBRARY_NO_ERROR;
       }
 
@@ -3061,12 +3061,12 @@ extern "C" {
     if (ret != SUCCESS) {
 
       if (ret == MISSING_SAMPLES) {
-        MLPutSymbol(mlp, "FiniteFlow`FFMissingPoints");
+        MLPutSymbol(mlp, "FiniteFlow32`FFMissingPoints");
         return LIBRARY_NO_ERROR;
       }
 
       if (ret == MISSING_PRIMES) {
-        MLPutSymbol(mlp, "FiniteFlow`FFMissingPrimes");
+        MLPutSymbol(mlp, "FiniteFlow32`FFMissingPrimes");
         return LIBRARY_NO_ERROR;
       }
 
@@ -3110,7 +3110,7 @@ extern "C" {
 
     if (ret != SUCCESS) {
       if (ret == MISSING_PRIMES)
-        MLPutSymbol(mlp, "FiniteFlow`FFMissingPrimes");
+        MLPutSymbol(mlp, "FiniteFlow32`FFMissingPrimes");
       else
         MLPutSymbol(mlp, "$Failed");
       return LIBRARY_NO_ERROR;
