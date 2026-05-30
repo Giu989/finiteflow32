@@ -18,6 +18,7 @@ PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_add_one.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_msolve_prime.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div_wrapper.sh
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_leading_monomials.sh
 ```
 
 Or run the complete build/install/test pipeline:

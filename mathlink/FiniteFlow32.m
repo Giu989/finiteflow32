@@ -102,6 +102,7 @@ FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds 
 FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
 FFAlgNodePolyDiv::usage = "FFAlgNodePolyDiv[graph,node,inputs,{targetTakePattern,idealTakePattern},vars] creates a polynomial-reduction node.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}; the targets are reduced modulo the ideal with msolve in degree reverse lexicographic order."
 FFAlgPolyDiv::usage = "FFAlgPolyDiv[graph,node,targets,ideal,variables] creates coefficient-evaluation nodes for symbolic polynomial targets and ideal generators, infers reconstruction parameters from the coefficients, builds the corresponding take patterns, and calls FFAlgNodePolyDiv.  The only supported option is MonomialOrder -> \"DegreeReverseLexicographic\"."
+LeadingMonomials::usage = "LeadingMonomials[ideal,variables] uses msolve to compute the leading monomials of the degree-reverse-lexicographic Groebner basis of ideal.  Symbols in ideal that are not listed in variables are treated as parameters and are substituted by random nonzero integers below 2^31 before calling msolve.  The result is sorted in the FiniteFlow32 polynomial-division convention, with the highest-weight monomial first."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
 FFAlgSparseMatMul::usage = "FFAlgSparseMatMul[graph,node,{input1,input2},r1,c1,c2,nonzerocols1,nonzerocols2] is analogous to FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2] except that input1 and input2 only return the potentially non-vanishing matrix elements of the inputs.  The arguments nonzerocols1 and nonzerocols2 are lists of lists with the potentially non-vanishing columns in each row for the two input matrices respectively."
@@ -235,6 +236,16 @@ FF::badpolydivparams = "Could not infer valid polynomial-division parameters fro
 FF::badpolydivpoly = "`1` is not a polynomial in the polynomial variables `2`."
 FF::badpolydivcoeff = "Invalid coefficient expression `1`.  Coefficients must be rational functions of the parameters `2`."
 FF::badpolydivcoeffnode = "Could not create the internal coefficient-evaluation node for FFAlgPolyDiv."
+FF::badleadingideal = "LeadingMonomials expects a non-empty list of ideal generators."
+FF::badleadingvars = "LeadingMonomials expects a non-empty list of distinct symbolic variables; got `1`."
+FF::badleadingoption = "Option `1` is not supported by LeadingMonomials."
+FF::badleadingorder = "LeadingMonomials only supports MonomialOrder -> \"DegreeReverseLexicographic\"."
+FF::badleadingpoly = "`1` is not a polynomial in the variables `2` after treating all other symbols as parameters."
+FF::badleadingprime = "LeadingMonomials needs a prime below 2^31; got `1`."
+FF::badleadingretries = "The LeadingMonomials option \"Retries\" must be a positive integer; got `1`."
+FF::leadnomsolve = "msolve executable not found. Install msolve or set MSOLVE=/path/to/msolve."
+FF::leadmsolvefail = "msolve failed while computing leading monomials: `1`."
+FF::leadmsolveparse = "Could not parse msolve leading-ideal output: `1`."
 FF::badsysweights = "Weights must of a list of lists."
 FF::badsysautoweights = "Automatic weights require both \"WeightIdx\" and \"WeightPattern\" options to be set."
 FF::badweqpattern = "Equations non-homogeneous in the weights or invalid weight pattern."
@@ -1402,6 +1413,317 @@ FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := Module[
 
     FFAlgNodePolyDiv[gid, id, {coeffNode}, {targetInfo[[1]], idealInfo[[1]]},
                      vars]
+  ]
+];
+
+Options[LeadingMonomials] = {
+  MonomialOrder -> "DegreeReverseLexicographic",
+  "Prime" -> Automatic,
+  "RandomSeed" -> Automatic,
+  "Retries" -> 3,
+  "MsolveExecutable" -> Automatic,
+  "KeepTemporaryFiles" -> False
+};
+
+LeadingUnsupportedOptionNames[opts_] := Module[
+  {badNonRules, names, allowed},
+  badNonRules = Select[opts, !MatchQ[#,_Rule|_RuleDelayed]&];
+  If[Length[badNonRules] != 0, Return[badNonRules]];
+  allowed = {MonomialOrder, "Prime", "RandomSeed", "Retries",
+             "MsolveExecutable", "KeepTemporaryFiles"};
+  names = opts[[All,1]];
+  Select[names, !MemberQ[allowed, #]&]
+];
+
+LeadingMsolveExecutable[Automatic] := Module[
+  {fromEnv, found},
+  fromEnv = Environment["MSOLVE"];
+  If[StringQ[fromEnv] && StringLength[fromEnv] > 0 && FileExistsQ[fromEnv],
+    Return[fromEnv]
+  ];
+  found = FindExecutable["msolve"];
+  If[StringQ[found] && StringLength[found] > 0, Return[found]];
+  SelectFirst[
+    {"/opt/homebrew/bin/msolve", "/usr/local/bin/msolve", "/usr/bin/msolve"},
+    FileExistsQ,
+    $Failed
+  ]
+];
+LeadingMsolveExecutable[path_String] :=
+  If[StringLength[path] > 0 && FileExistsQ[path], path, $Failed];
+LeadingMsolveExecutable[_] := $Failed;
+
+LeadingMsolvePrime[Automatic] := Module[
+  {p},
+  p = Quiet[Check[FFPrimeNo[0], $Failed]];
+  If[IntegerQ[p] && 1 < p < 2^31, p, 2147483629]
+];
+LeadingMsolvePrime[p_Integer] := p;
+LeadingMsolvePrime[_] := $Failed;
+
+LeadingValidateInputs[ideal_, vars_] := Module[
+  {symbols, params, rat},
+  If[!TrueQ[ListQ[ideal] && Length[ideal] > 0],
+    Message[FF::badleadingideal]; Throw[$Failed]
+  ];
+  If[!PolyDivSymbolListQ[vars, False],
+    Message[FF::badleadingvars, vars]; Throw[$Failed]
+  ];
+  symbols = PolyDivLeafSymbols[ideal];
+  params = Select[symbols, !MemberQ[vars,#]&];
+  Do[
+    rat = Quiet[Check[Together[poly], $Failed]];
+    If[TrueQ[rat === $Failed] ||
+       !TrueQ[PolynomialQ[Numerator[rat], vars] &&
+              FreeQ[Denominator[rat], Alternatives@@vars]],
+      Message[FF::badleadingpoly, poly, vars]; Throw[$Failed]
+    ];
+  ,{poly, ideal}];
+  {vars, params}
+];
+
+LeadingParameterRules[params_, seed_, attempt_Integer] := Module[
+  {values},
+  If[Length[params] == 0, Return[{}]];
+  values = If[TrueQ[seed === Automatic],
+    RandomInteger[{1, 2^31 - 1}, Length[params]],
+    BlockRandom[
+      SeedRandom[Hash[{seed, attempt}]];
+      RandomInteger[{1, 2^31 - 1}, Length[params]]
+    ]
+  ];
+  Thread[params -> values]
+];
+
+LeadingRatMod[coeff_, prime_Integer] := Module[
+  {rat, num, den, denmod},
+  rat = Quiet[Check[Together[coeff], $Failed]];
+  If[TrueQ[rat === $Failed], Return[$Failed]];
+  num = Numerator[rat];
+  den = Denominator[rat];
+  If[!TrueQ[IntegerQ[num] && IntegerQ[den]], Return[$Failed]];
+  denmod = Mod[den, prime];
+  If[denmod == 0, Return[$Failed]];
+  Mod[Mod[num, prime] * PowerMod[denmod, -1, prime], prime]
+];
+
+LeadingTermToMsolve[coeff_Integer, exps_List, varNames_List] := Module[
+  {factors, monomial},
+  factors = Flatten[
+    Table[
+      Which[
+        exps[[i]] == 0, {},
+        exps[[i]] == 1, {varNames[[i]]},
+        True, {varNames[[i]] <> "^" <> ToString[exps[[i]]]}
+      ],
+      {i, Length[varNames]}
+    ]
+  ];
+  monomial = StringRiffle[factors, "*"];
+  Which[
+    monomial === "", ToString[coeff],
+    coeff == 1, monomial,
+    True, ToString[coeff] <> "*" <> monomial
+  ]
+];
+
+LeadingPolynomialToMsolve[poly_, vars_List, varNames_List,
+                          prime_Integer] := Module[
+  {rules, terms = {}, coeff, modCoeff},
+  rules = Quiet[Check[CoefficientRules[poly, vars], $Failed]];
+  If[TrueQ[rules === $Failed], Return[$Failed]];
+  Do[
+    coeff = rule[[2]];
+    modCoeff = LeadingRatMod[coeff, prime];
+    If[TrueQ[modCoeff === $Failed], Return[$Failed]];
+    If[modCoeff != 0,
+      AppendTo[terms, LeadingTermToMsolve[modCoeff, rule[[1]], varNames]]
+    ];
+  ,{rule, rules}];
+  If[Length[terms] == 0, $Failed, StringRiffle[terms, "+"]]
+];
+
+LeadingSpecializeIdeal[ideal_List, vars_List, params_List, varNames_List,
+                       prime_Integer, seed_, attempt_Integer] := Module[
+  {rules, rendered},
+  rules = LeadingParameterRules[params, seed, attempt];
+  rendered = LeadingPolynomialToMsolve[Expand[Together[# /. rules]], vars,
+                                       varNames, prime]& /@ ideal;
+  If[MemberQ[rendered, $Failed], $Failed, {rules, rendered}]
+];
+
+LeadingMsolveInput[varNames_List, prime_Integer, polys_List] :=
+  StringRiffle[varNames, ","] <> "\n" <>
+  ToString[prime] <> "\n" <>
+  StringRiffle[polys, ",\n"] <> "\n";
+
+LeadingShellQuote[s_String] :=
+  "\"" <> StringReplace[s, {
+    "\\" -> "\\\\",
+    "\"" -> "\\\"",
+    "$" -> "\\$",
+    "`" -> "\\`"
+  }] <> "\"";
+
+LeadingRunMsolve[executable_String, input_String, keepTemps_] := Module[
+  {tmpdir, inputFile, outputFile, exitCode, output, cleanup, command},
+  tmpdir = Quiet[Check[
+    CreateDirectory[
+      FileNameJoin[{$TemporaryDirectory,
+        "finiteflow32-leading-" <> StringReplace[CreateUUID[], "-" -> ""]}]
+    ],
+    $Failed
+  ]];
+  If[TrueQ[tmpdir === $Failed],
+    Return[{$Failed, "could not create a temporary directory"}]
+  ];
+  cleanup[] := If[!TrueQ[keepTemps] && DirectoryQ[tmpdir],
+    Quiet[DeleteDirectory[tmpdir, DeleteContents -> True]]
+  ];
+  inputFile = FileNameJoin[{tmpdir, "input.ms"}];
+  outputFile = FileNameJoin[{tmpdir, "output.ms"}];
+  If[Quiet[Check[Export[inputFile, input, "Text"], $Failed]] === $Failed,
+    cleanup[]; Return[{$Failed, "could not write msolve input file"}]
+  ];
+  command = StringRiffle[
+    LeadingShellQuote /@ {executable, "-f", inputFile, "-o", outputFile,
+                          "-g", "1", "-v", "0"},
+    " "
+  ];
+  exitCode = Quiet[Check[Run[command], $Failed]];
+  If[TrueQ[exitCode === $Failed],
+    cleanup[]; Return[{$Failed, "could not launch msolve"}]
+  ];
+  If[exitCode =!= 0,
+    cleanup[]; Return[{$Failed, "exit code " <> ToString[exitCode]}]
+  ];
+  If[!FileExistsQ[outputFile],
+    cleanup[]; Return[{$Failed, "msolve did not produce an output file"}]
+  ];
+  output = Quiet[Check[Import[outputFile, "Text"], $Failed]];
+  If[TrueQ[output === $Failed],
+    cleanup[]; Return[{$Failed, "could not read msolve output file"}]
+  ];
+  cleanup[];
+  {output, ""}
+];
+
+LeadingParseMsolveMonomial[text_String, varNames_List] := Module[
+  {s, exps, factors, parts, name, exp, pos},
+  s = StringTrim[text];
+  exps = ConstantArray[0, Length[varNames]];
+  If[s === "1", Return[exps]];
+  factors = StringSplit[s, "*"];
+  Do[
+    parts = StringTrim /@ StringSplit[StringTrim[factor], "^"];
+    Which[
+      Length[parts] == 1,
+        name = parts[[1]]; exp = 1,
+      Length[parts] == 2 && StringMatchQ[parts[[2]], DigitCharacter..],
+        name = parts[[1]]; exp = ToExpression[parts[[2]]],
+      True,
+        Return[$Failed]
+    ];
+    pos = FirstPosition[varNames, name, Missing["NotFound"], {1}];
+    If[MissingQ[pos], Return[$Failed]];
+    exps[[pos[[1]]]] = exps[[pos[[1]]]] + exp;
+  ,{factor, factors}];
+  exps
+];
+
+LeadingGrevlexLessQ[a_List, b_List] := Module[
+  {da, db, n, i},
+  da = Total[a];
+  db = Total[b];
+  If[da =!= db, Return[da < db]];
+  n = Min[Length[a], Length[b]];
+  Do[
+    i = n + 1 - ri;
+    If[a[[i]] =!= b[[i]], Return[a[[i]] > b[[i]]]],
+    {ri, n}
+  ];
+  Length[a] < Length[b]
+];
+
+LeadingParseOutput[text_String, varNames_List, vars_List] := Module[
+  {body, starts, ends, content, pieces, exps},
+  body = StringRiffle[
+    Select[StringSplit[text, "\n"], !StringStartsQ[StringTrim[#], "#"]&],
+    "\n"
+  ];
+  starts = StringPosition[body, "["];
+  ends = StringPosition[body, "]"];
+  If[Length[starts] == 0 || Length[ends] == 0 ||
+     starts[[1,2]] >= ends[[-1,1]],
+    Return[$Failed]
+  ];
+  content = StringTake[body, {starts[[1,2]] + 1, ends[[-1,1]] - 1}];
+  pieces = DeleteCases[StringTrim /@ StringSplit[content, ","], ""];
+  exps = LeadingParseMsolveMonomial[#, varNames]& /@ pieces;
+  If[MemberQ[exps, $Failed], Return[$Failed]];
+  exps = DeleteDuplicates[exps];
+  exps = Sort[exps, LeadingGrevlexLessQ[#2, #1]&];
+  Times@@MapThread[Power, {vars, #}]& /@ exps
+];
+
+LeadingMonomials[ideal_, variables_, opts___] := Module[
+  {optRules = {opts}, unsupported, optAssoc, order, prime, retries,
+   executable, keepTemps, vars, params, varNames, seed, specialized, input,
+   run, parsed, result = $Failed, success = False,
+   lastError = "unknown msolve failure"},
+  Catch[
+    unsupported = LeadingUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badleadingoption, unsupported[[1]]]; Throw[$Failed]
+    ];
+    optAssoc = Association[Options[LeadingMonomials]];
+    Do[optAssoc[rule[[1]]] = rule[[2]], {rule, optRules}];
+    order = optAssoc[MonomialOrder];
+    If[!TrueQ[order === "DegreeReverseLexicographic"],
+      Message[FF::badleadingorder]; Throw[$Failed]
+    ];
+    {vars, params} = LeadingValidateInputs[ideal, variables];
+    varNames = ToString[#, InputForm]& /@ vars;
+    prime = LeadingMsolvePrime[optAssoc["Prime"]];
+    If[!TrueQ[IntegerQ[prime] && PrimeQ[prime] && 1 < prime < 2^31],
+      Message[FF::badleadingprime, prime]; Throw[$Failed]
+    ];
+    retries = optAssoc["Retries"];
+    If[!TrueQ[IntegerQ[retries] && retries > 0],
+      Message[FF::badleadingretries, retries]; Throw[$Failed]
+    ];
+    executable = LeadingMsolveExecutable[optAssoc["MsolveExecutable"]];
+    If[TrueQ[executable === $Failed],
+      Message[FF::leadnomsolve]; Throw[$Failed]
+    ];
+    seed = optAssoc["RandomSeed"];
+    keepTemps = optAssoc["KeepTemporaryFiles"];
+    Do[
+      specialized = LeadingSpecializeIdeal[ideal, vars, params, varNames,
+                                           prime, seed, attempt];
+      If[TrueQ[specialized === $Failed],
+        lastError = "parameter specialization produced invalid or zero input";
+        Continue[]
+      ];
+      input = LeadingMsolveInput[varNames, prime, specialized[[2]]];
+      run = LeadingRunMsolve[executable, input, keepTemps];
+      If[TrueQ[run[[1]] === $Failed],
+        lastError = run[[2]];
+        Continue[]
+      ];
+      parsed = LeadingParseOutput[run[[1]], varNames, vars];
+      If[TrueQ[parsed === $Failed],
+        Message[FF::leadmsolveparse, run[[1]]]; Throw[$Failed]
+      ];
+      result = parsed;
+      success = True;
+      Break[],
+      {attempt, retries}
+    ];
+    If[TrueQ[success],
+      result,
+      Message[FF::leadmsolvefail, lastError]; Throw[$Failed]
+    ]
   ]
 ];
 

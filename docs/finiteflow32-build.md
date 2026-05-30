@@ -127,6 +127,12 @@ Run the Mathematica high-level polynomial-division wrapper test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div_wrapper.sh
 ```
 
+Run the Mathematica msolve leading-monomial helper test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_leading_monomials.sh
+```
+
 Run the full validation pipeline:
 
 ```bash

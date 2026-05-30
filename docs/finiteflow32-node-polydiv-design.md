@@ -132,3 +132,25 @@ The Mathematica test
 rational coefficients, unsupported options, unsupported orders, invalid
 polynomials, invalid variable lists, non-rational coefficient expressions, and
 the no-learning side-effect.
+
+## LeadingMonomials helper
+
+`LeadingMonomials[ideal, variables]` is a Mathematica-level helper for
+inspecting the degree-reverse-lexicographic leading ideal of a symbolic ideal.
+It does not implement Buchberger/F4 in Mathematica.  Instead it specializes
+all symbols in `ideal` that are not listed in `variables` to random nonzero
+integers below `2^31`, writes an msolve prime-field input file, and calls:
+
+```bash
+msolve -f input.ms -o output.ms -g 1 -v 0
+```
+
+Local msolve 0.9.4 documents `-g 1` as printing the leading ideal of the
+grevlex reduced Groebner basis.  msolve prints those monomials in increasing
+leading-monomial order; the Mathematica helper re-sorts them into the
+FiniteFlow32 polynomial-division convention, with the highest-weight grevlex
+monomial first and the lowest-weight monomial last.  The helper accepts
+`"RandomSeed" -> seed` for deterministic parameter sampling in tests,
+`"Retries" -> n` for retrying unlucky specializations, `"Prime" -> p` for an
+explicit msolve-compatible prime, and `"MsolveExecutable" -> path` for tests
+or nonstandard installs.
