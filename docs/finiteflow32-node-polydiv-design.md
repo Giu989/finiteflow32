@@ -94,15 +94,16 @@ and `src/poly_reduction.cc`.
 - Stage 5: `learn_poly_reduction_basis` accepts evaluated input slices,
   expands the target and ideal take patterns for each slice, calls msolve
   normal-form mode, collects the monomials appearing in the reduced targets,
-  sorts the learned basis in degree reverse lexicographic order, reports the
-  flattened runtime output size, and fails clearly when strict learning sees an
-  inconsistent monomial basis across slices.
+  sorts the learned basis in descending degree reverse lexicographic order so
+  the highest-weight monomial is leftmost and the lowest-weight monomial is
+  rightmost, reports the flattened runtime output size, and fails clearly when
+  strict learning sees an inconsistent monomial basis across slices.
 - Stage 6: `PolyDiv` is a native FiniteFlow32 algorithm node exposed as
   `FFAlgNodePolyDiv` through the C API, LibraryLink, and Mathematica package.
   Its learning phase stores the grevlex monomial basis, `FFPolyDivLearn`
   formats that basis as Mathematica monomials, and runtime evaluation reduces
   targets with msolve and returns the flattened coefficient matrix in the
-  learned basis.  Runtime normal forms containing a monomial outside the
+  learned basis order.  Runtime normal forms containing a monomial outside the
   learned basis fail with a clear error.
 
 The native test target `testpoly_reduction`, run through
@@ -112,3 +113,22 @@ FiniteFlow graph system.
 The Mathematica integration test `tests/mathematica/poly_div.m`, run through
 `scripts/test_mathematica_poly_div.sh`, covers graph construction, learning,
 and runtime evaluation through the public Mathematica API.
+
+## High-level Mathematica wrapper
+
+`FFAlgPolyDiv[graph, node, targets, ideal, variables, opts]` is a
+Mathematica-only convenience wrapper around `FFAlgNodePolyDiv`.  It parses
+symbolic target and ideal polynomials in the supplied polynomial variables,
+extracts coefficient expressions, infers reconstruction parameters from those
+coefficients, creates the internal coefficient-evaluation node with
+`FFAlgRatFunEval` (or `FFAlgRatNumEval` when there are no parameters), builds
+the take patterns, and then calls the lower-level node.
+
+The wrapper supports only `MonomialOrder -> "DegreeReverseLexicographic"`.
+It does not run learning, graph evaluation, reconstruction, or msolve directly.
+The Mathematica test
+`tests/mathematica/poly_div_wrapper.m`, run through
+`scripts/test_mathematica_poly_div_wrapper.sh`, covers inferred parameters,
+rational coefficients, unsupported options, unsupported orders, invalid
+polynomials, invalid variable lists, non-rational coefficient expressions, and
+the no-learning side-effect.

@@ -15,5 +15,6 @@ export PREFIX="${prefix}"
 "${script_dir}/scripts/test_mathematica_add_one.sh"
 "${script_dir}/scripts/test_mathematica_msolve_prime.sh"
 "${script_dir}/scripts/test_mathematica_poly_div.sh"
+"${script_dir}/scripts/test_mathematica_poly_div_wrapper.sh"
 
 echo "FiniteFlow32 validation passed."

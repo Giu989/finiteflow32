@@ -121,6 +121,12 @@ Run the Mathematica polynomial-division node test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div.sh
 ```
 
+Run the Mathematica high-level polynomial-division wrapper test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div_wrapper.sh
+```
+
 Run the full validation pipeline:
 
 ```bash

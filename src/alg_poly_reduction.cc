@@ -25,7 +25,11 @@ namespace {
       }
     }
 
-    std::sort(basis.begin(), basis.end(), grevlex_less);
+    std::sort(basis.begin(), basis.end(),
+              [](const PolyMonomial & a, const PolyMonomial & b)
+              {
+                return grevlex_less(b, a);
+              });
   }
 
   bool same_basis_(const std::vector<PolyMonomial> & a,

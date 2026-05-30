@@ -101,6 +101,7 @@ FFAlgAdd::usage = "FFAlgAdd[graph,node,inputs] adds the lists returned by the in
 FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds one to every entry returned by input."
 FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
 FFAlgNodePolyDiv::usage = "FFAlgNodePolyDiv[graph,node,inputs,{targetTakePattern,idealTakePattern},vars] creates a polynomial-reduction node.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}; the targets are reduced modulo the ideal with msolve in degree reverse lexicographic order."
+FFAlgPolyDiv::usage = "FFAlgPolyDiv[graph,node,targets,ideal,variables] creates coefficient-evaluation nodes for symbolic polynomial targets and ideal generators, infers reconstruction parameters from the coefficients, builds the corresponding take patterns, and calls FFAlgNodePolyDiv.  The only supported option is MonomialOrder -> \"DegreeReverseLexicographic\"."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
 FFAlgSparseMatMul::usage = "FFAlgSparseMatMul[graph,node,{input1,input2},r1,c1,c2,nonzerocols1,nonzerocols2] is analogous to FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2] except that input1 and input2 only return the potentially non-vanishing matrix elements of the inputs.  The arguments nonzerocols1 and nonzerocols2 are lists of lists with the potentially non-vanishing columns in each row for the two input matrices respectively."
@@ -227,6 +228,13 @@ FF::badpattern = "Variables `1` match the variables pattern but they are not in 
 FF::badtakepattern = "Invalid take pattern."
 FF::badpolydivmonomial = "`1` is not a coefficient-free monomial in the variables `2`."
 FF::badpolydivpattern = "Invalid polynomial-division take pattern."
+FF::badpolydivoption = "Option `1` is not supported by FFAlgPolyDiv."
+FF::badpolydivorder = "FFAlgPolyDiv only supports MonomialOrder -> \"DegreeReverseLexicographic\"."
+FF::badpolydivvars = "Invalid polynomial-division variable list `1`."
+FF::badpolydivparams = "Could not infer valid polynomial-division parameters from coefficients `1`."
+FF::badpolydivpoly = "`1` is not a polynomial in the polynomial variables `2`."
+FF::badpolydivcoeff = "Invalid coefficient expression `1`.  Coefficients must be rational functions of the parameters `2`."
+FF::badpolydivcoeffnode = "Could not create the internal coefficient-evaluation node for FFAlgPolyDiv."
 FF::badsysweights = "Weights must of a list of lists."
 FF::badsysautoweights = "Automatic weights require both \"WeightIdx\" and \"WeightPattern\" options to be set."
 FF::badweqpattern = "Equations non-homogeneous in the weights or invalid weight pattern."
@@ -1268,6 +1276,134 @@ RegisterAlgNodePolyDiv[gid_,inputs_,{patterns_,vars_}]:=Module[
 ];
 FFAlgNodePolyDiv[gid_,id_,inputs_List,patterns_,vars_]:=
   FFRegisterAlgorithm[RegisterAlgNodePolyDiv,gid,id,inputs,{patterns,vars}];
+
+Options[FFAlgPolyDiv] = {MonomialOrder -> "DegreeReverseLexicographic"};
+
+PolyDivSymbolListQ[list_, allowEmpty_:False] :=
+  ListQ[list] &&
+  (allowEmpty || Length[list] > 0) &&
+  AllTrue[list, MatchQ[#,_Symbol]&] &&
+  DuplicateFreeQ[list];
+
+PolyDivLeafSymbols[expr_] :=
+  DeleteDuplicates[Cases[HoldComplete[expr], s_Symbol :> s, {0,Infinity},
+                         Heads -> False]];
+
+PolyDivValidateVariables[vars_] := Module[{},
+  If[!PolyDivSymbolListQ[vars, False],
+    Message[FF::badpolydivvars, vars]; Throw[$Failed]
+  ];
+  vars
+];
+
+PolyDivInferParameters[coeffs_, vars_] := Module[
+  {params},
+  params = Select[PolyDivLeafSymbols[coeffs], !MemberQ[vars,#]&];
+  If[!PolyDivSymbolListQ[params, True],
+    Message[FF::badpolydivparams, coeffs]; Throw[$Failed]
+  ];
+  params
+];
+
+PolyDivValidateCoefficient[coeff_, params_] := Module[
+  {rat, symbols, unknown},
+  rat = Quiet[Check[Together[coeff], $Failed]];
+  If[TrueQ[rat === $Failed],
+    Message[FF::badpolydivcoeff, coeff, params]; Throw[$Failed]
+  ];
+  symbols = PolyDivLeafSymbols[rat];
+  unknown = Complement[symbols, params];
+  If[Length[unknown] != 0,
+    Message[FF::badpolydivcoeff, coeff, params]; Throw[$Failed]
+  ];
+  If[!TrueQ[PolynomialQ[Numerator[rat], params] &&
+            PolynomialQ[Denominator[rat], params]],
+    Message[FF::badpolydivcoeff, coeff, params]; Throw[$Failed]
+  ];
+  rat
+];
+
+PolyDivCoefficientIndex[coeff_, coeffs_] := Module[
+  {pos},
+  pos = FirstPosition[coeffs, _?(TrueQ[# === coeff]&), Missing["NotFound"],
+                      {1}];
+  If[MissingQ[pos], Missing["NotFound"], pos[[1]]]
+];
+
+PolyDivExtractTakePattern[polys_, vars_, coeffs_] := Module[
+  {pattern = {}, coeffList = coeffs, rules, terms, exp, coeff, monomial,
+   idx},
+  If[!ListQ[polys], Message[FF::badpolydivpattern]; Throw[$Failed]];
+  Do[
+    If[!TrueQ[PolynomialQ[Together[poly], vars]],
+      Message[FF::badpolydivpoly, poly, vars]; Throw[$Failed]
+    ];
+    rules = Quiet[Check[CoefficientRules[poly, vars],
+                        Message[FF::badpolydivpoly, poly, vars]; Throw[$Failed]]];
+    terms = {};
+    Do[
+      exp = rule[[1]];
+      coeff = Together[rule[[2]]];
+      If[TrueQ[coeff === 0], Continue[]];
+      idx = PolyDivCoefficientIndex[coeff, coeffList];
+      If[MissingQ[idx],
+        AppendTo[coeffList, coeff];
+        idx = Length[coeffList];
+      ];
+      monomial = Times@@(vars^exp);
+      AppendTo[terms, {{1, idx}, monomial}];
+    ,{rule, rules}];
+    AppendTo[pattern, terms];
+  ,{poly, polys}];
+  {pattern, coeffList}
+];
+
+PolyDivUnsupportedOptionNames[opts_] := Module[
+  {badNonRules, names},
+  badNonRules = Select[opts, !MatchQ[#,_Rule|_RuleDelayed]&];
+  If[Length[badNonRules] != 0, Return[badNonRules]];
+  names = opts[[All,1]];
+  Select[names, !MemberQ[{MonomialOrder}, #]&]
+];
+
+FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := Module[
+  {optRules = {opts}, unsupported, optAssoc, params, vars, order,
+   targetInfo, idealInfo, coeffs = {}, coeffNode, inputNode, coeffOk},
+  Catch[
+    unsupported = PolyDivUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badpolydivoption, unsupported[[1]]]; Throw[$Failed]
+    ];
+
+    optAssoc = Association[Options[FFAlgPolyDiv]];
+    Do[optAssoc[rule[[1]]] = rule[[2]], {rule, optRules}];
+
+    order = optAssoc[MonomialOrder];
+    If[!TrueQ[order === "DegreeReverseLexicographic"],
+      Message[FF::badpolydivorder]; Throw[$Failed]
+    ];
+
+    vars = PolyDivValidateVariables[variables];
+
+    targetInfo = PolyDivExtractTakePattern[targets, vars, coeffs];
+    coeffs = targetInfo[[2]];
+    idealInfo = PolyDivExtractTakePattern[ideal, vars, coeffs];
+    coeffs = idealInfo[[2]];
+    params = PolyDivInferParameters[coeffs, vars];
+    coeffs = PolyDivValidateCoefficient[#, params]&/@coeffs;
+
+    coeffNode = Unique["ffpolydivcoeff$"];
+    coeffOk = If[Length[params] == 0,
+      FFAlgRatNumEval[gid, coeffNode, coeffs],
+      inputNode = FFGraphInputNode[gid];
+      FFAlgRatFunEval[gid, coeffNode, {inputNode}, params, coeffs]
+    ];
+    If[!TrueQ[coeffOk], Message[FF::badpolydivcoeffnode]; Throw[$Failed]];
+
+    FFAlgNodePolyDiv[gid, id, {coeffNode}, {targetInfo[[1]], idealInfo[[1]]},
+                     vars]
+  ]
+];
 
 
 RegisterAlgMul[gid_,inputs_,{}]:=Catch[FFAlgMulImplem[gid,inputs]];

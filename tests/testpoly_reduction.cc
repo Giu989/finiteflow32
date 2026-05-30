@@ -333,10 +333,10 @@ void test_learning_phase()
 
   require(result.prime == prime, "learning result kept active prime");
   require(result.basis.size() == 2, "learned monomial basis size");
-  require(same_monomial(result.basis[0], PolyMonomial({0, 0})),
-          "learned basis first monomial is constant");
-  require(same_monomial(result.basis[1], PolyMonomial({0, 1})),
-          "learned basis second monomial is y");
+  require(same_monomial(result.basis[0], PolyMonomial({0, 1})),
+          "learned basis first monomial is y");
+  require(same_monomial(result.basis[1], PolyMonomial({0, 0})),
+          "learned basis second monomial is constant");
   require(result.output_size == 4, "learned output size is targets times basis");
   require(result.basis_by_slice.size() == 2, "learning stores basis per slice");
   require(result.normal_forms_by_slice.size() == 2,
@@ -392,10 +392,10 @@ void test_learning_phase_inconsistent_basis()
                                          slices, options, result),
               "non-strict learning accepts union basis", result.error);
   require(result.basis.size() == 2, "non-strict learning returns union basis");
-  require(same_monomial(result.basis[0], PolyMonomial({0, 0})),
-          "union basis first monomial is constant");
-  require(same_monomial(result.basis[1], PolyMonomial({0, 1})),
-          "union basis second monomial is y");
+  require(same_monomial(result.basis[0], PolyMonomial({0, 1})),
+          "union basis first monomial is y");
+  require(same_monomial(result.basis[1], PolyMonomial({0, 0})),
+          "union basis second monomial is constant");
   require(result.output_size == 2, "union learning output size");
 }
 

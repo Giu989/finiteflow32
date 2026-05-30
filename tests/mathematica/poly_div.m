@@ -78,7 +78,7 @@ idealPattern = {
 
 Check[
   FFNewGraph[graph, input, {a}];
-  FFAlgRatFunEval[graph, targetNode, {input}, {a}, {1, 1, 1, 1}];
+  FFAlgRatFunEval[graph, targetNode, {input}, {a}, {1, 2, 1, 1}];
   FFAlgRatFunEval[graph, idealNode, {input}, {a}, {1, 1, 1, 1}];
   FFAlgNodePolyDiv[
     graph,
@@ -96,7 +96,7 @@ learnedBasis = Check[
   fail["FFAlgNodePolyDiv learning raised a Mathematica error"]
 ];
 
-expectedBasis = {1, y};
+expectedBasis = {y, 1};
 If[learnedBasis =!= expectedBasis,
   Print["Expected learned basis: ", expectedBasis];
   Print["Received learned basis: ", learnedBasis];
@@ -109,7 +109,7 @@ result = Check[
   fail["FFAlgNodePolyDiv graph evaluation raised a Mathematica error"]
 ];
 
-expected = {1, 1, 0, 0};
+expected = {2, 1, 0, 0};
 If[result =!= expected,
   Print["Expected coefficients: ", expected];
   Print["Received coefficients: ", result];
@@ -121,6 +121,5 @@ Quiet[Check[FFDeleteGraph[graph], Null]];
 
 Print["finiteflow32 Mathematica FFAlgNodePolyDiv test passed"];
 finish[0];
-
 
 
