@@ -27,6 +27,7 @@
 #include <fflow/eval_count.hh>
 #include <fflow/algorithm.hh>
 #include <fflow/mp_gcd.hh>
+#include <fflow/alg_poly_reduction.hh>
 using namespace fflow;
 
 #define FF_MIN_ERROR (FF_ERROR - 10)
@@ -1360,6 +1361,87 @@ extern "C" {
     unsigned id = g->new_node(std::move(algptr), nullptr, &in_node);
 
     return id;
+  }
+
+  FFNode ffAlgNodePolyDiv(FFGraph graph,
+                          const FFNode * in_nodes, unsigned n_in_nodes,
+                          const FFCStr * variables, unsigned n_variables,
+                          const unsigned * target_poly_sizes,
+                          unsigned n_targets,
+                          const unsigned * target_sources,
+                          const unsigned * target_exponents,
+                          const unsigned * ideal_poly_sizes,
+                          unsigned n_ideal,
+                          const unsigned * ideal_sources,
+                          const unsigned * ideal_exponents)
+  {
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    std::vector<unsigned> nparsin(n_in_nodes);
+    for (unsigned i=0; i<n_in_nodes; ++i) {
+      Node * node = session.node(graph, in_nodes[i]);
+      if (!node)
+        return FF_ERROR;
+      nparsin[i] = node->algorithm()->nparsout;
+    }
+
+    std::vector<std::string> vars(n_variables);
+    for (unsigned i=0; i<n_variables; ++i) {
+      if (!variables[i])
+        return FF_ERROR;
+      vars[i] = variables[i];
+    }
+
+    std::vector<unsigned> target_sizes(target_poly_sizes,
+                                       target_poly_sizes + n_targets);
+    std::vector<unsigned> ideal_sizes(ideal_poly_sizes,
+                                      ideal_poly_sizes + n_ideal);
+
+    unsigned n_target_terms = 0;
+    for (unsigned size : target_sizes)
+      n_target_terms += size;
+    unsigned n_ideal_terms = 0;
+    for (unsigned size : ideal_sizes)
+      n_ideal_terms += size;
+
+    std::vector<unsigned> target_source_vec(
+      target_sources, target_sources + 2*n_target_terms);
+    std::vector<unsigned> target_exponent_vec(
+      target_exponents, target_exponents + n_variables*n_target_terms);
+    std::vector<unsigned> ideal_source_vec(
+      ideal_sources, ideal_sources + 2*n_ideal_terms);
+    std::vector<unsigned> ideal_exponent_vec(
+      ideal_exponents, ideal_exponents + n_variables*n_ideal_terms);
+
+    PolyTakePattern target_pattern, ideal_pattern;
+    std::string error;
+    if (make_poly_take_pattern_from_flat(n_variables, target_sizes,
+                                         target_source_vec,
+                                         target_exponent_vec,
+                                         target_pattern, &error)
+        != SUCCESS) {
+      logerr(error);
+      return FF_ERROR;
+    }
+    if (make_poly_take_pattern_from_flat(n_variables, ideal_sizes,
+                                         ideal_source_vec,
+                                         ideal_exponent_vec,
+                                         ideal_pattern, &error)
+        != SUCCESS) {
+      logerr(error);
+      return FF_ERROR;
+    }
+
+    std::unique_ptr<PolyDiv> algptr(new PolyDiv());
+    PolyDiv & alg = *algptr;
+    if (alg.init(nparsin.data(), nparsin.size(), std::move(vars),
+                 std::move(target_pattern), std::move(ideal_pattern))
+        != SUCCESS)
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    return g->new_node(std::move(algptr), nullptr, in_nodes);
   }
 
   FFNode ffAlgMul(FFGraph graph,

@@ -22,6 +22,8 @@
 #include <fflow/eval_count.hh>
 #include <fflow/cached_subgraph.hh>
 #include <fflow/ratexpr_parser.hh>
+#include <fflow/alg_poly_reduction.hh>
+#include <fflow/capi.h>
 #include <mathlink.h>
 #include <WolframLibrary.h>
 using namespace fflow;
@@ -910,6 +912,16 @@ namespace  {
         MLPutInteger32(mlp, salg.nparsin[0]);
         MLPutInteger32List(mlp, (int*)(salg.non_zeroes()), salg.nparsout);
 
+    } else if (dynamic_cast<PolyDiv*>(alg)) {
+        PolyDiv & salg = *static_cast<PolyDiv*>(alg);
+        const auto & basis = salg.basis();
+        MLPutFunction(mlp, "List", basis.size());
+        for (const PolyMonomial & monomial : basis) {
+          std::vector<int> exponents(monomial.exponents.begin(),
+                                     monomial.exponents.end());
+          MLPutInteger32List(mlp, exponents.data(), exponents.size());
+        }
+
     } else if (dynamic_cast<LaurentExpansion*>(alg)) {
         auto & salg = *static_cast<LaurentExpansion*>(alg);
         MLPutFunction(mlp, "List", 2);
@@ -1007,6 +1019,19 @@ namespace  {
     MLINK mlp_ = 0;
     std::vector<const char *> list;
   };
+
+  bool copy_nonnegative_ints(const int * in, int n, std::vector<unsigned> & out)
+  {
+    if (n < 0)
+      return false;
+    out.resize(n);
+    for (int i=0; i<n; ++i) {
+      if (in[i] < 0)
+        return false;
+      out[i] = unsigned(in[i]);
+    }
+    return true;
+  }
 
 } // namespace
 
@@ -3711,6 +3736,100 @@ extern "C" {
     } else {
       MLPutInteger32(mlp, id);
     }
+
+    return LIBRARY_NO_ERROR;
+  }
+
+  int fflowml_alg_node_poly_div(WolframLibraryData libData, MLINK mlp)
+  {
+    (void)(libData);
+
+    int n_args;
+    MLNewPacket(mlp);
+    MLTestHead(mlp, "List", &n_args);
+
+    int graphid;
+    std::vector<unsigned> inputnodes;
+    MLGetInteger32(mlp, &graphid);
+    get_input_nodes(mlp, inputnodes);
+
+    int nvars = 0;
+    MathStringList vars;
+    MLTestHead(mlp, "List", &nvars);
+    vars.list.resize(nvars);
+    for (int i=0; i<nvars; ++i)
+      vars.get_str(mlp, i);
+
+    int * target_sizes = nullptr;
+    int * target_sources = nullptr;
+    int * target_exponents = nullptr;
+    int * ideal_sizes = nullptr;
+    int * ideal_sources = nullptr;
+    int * ideal_exponents = nullptr;
+    int n_target_sizes = 0;
+    int n_target_sources = 0;
+    int n_target_exponents = 0;
+    int n_ideal_sizes = 0;
+    int n_ideal_sources = 0;
+    int n_ideal_exponents = 0;
+
+    MLGetInteger32List(mlp, &target_sizes, &n_target_sizes);
+    MLGetInteger32List(mlp, &target_sources, &n_target_sources);
+    MLGetInteger32List(mlp, &target_exponents, &n_target_exponents);
+    MLGetInteger32List(mlp, &ideal_sizes, &n_ideal_sizes);
+    MLGetInteger32List(mlp, &ideal_sources, &n_ideal_sources);
+    MLGetInteger32List(mlp, &ideal_exponents, &n_ideal_exponents);
+
+    std::vector<unsigned> target_size_vec, target_source_vec;
+    std::vector<unsigned> target_exponent_vec, ideal_size_vec;
+    std::vector<unsigned> ideal_source_vec, ideal_exponent_vec;
+    bool ok =
+      copy_nonnegative_ints(target_sizes, n_target_sizes, target_size_vec) &&
+      copy_nonnegative_ints(target_sources, n_target_sources, target_source_vec) &&
+      copy_nonnegative_ints(target_exponents, n_target_exponents, target_exponent_vec) &&
+      copy_nonnegative_ints(ideal_sizes, n_ideal_sizes, ideal_size_vec) &&
+      copy_nonnegative_ints(ideal_sources, n_ideal_sources, ideal_source_vec) &&
+      copy_nonnegative_ints(ideal_exponents, n_ideal_exponents, ideal_exponent_vec);
+
+    unsigned target_terms = 0;
+    for (unsigned size : target_size_vec)
+      target_terms += size;
+    unsigned ideal_terms = 0;
+    for (unsigned size : ideal_size_vec)
+      ideal_terms += size;
+
+    ok = ok &&
+      target_source_vec.size() == std::size_t(2)*target_terms &&
+      target_exponent_vec.size() == std::size_t(nvars)*target_terms &&
+      ideal_source_vec.size() == std::size_t(2)*ideal_terms &&
+      ideal_exponent_vec.size() == std::size_t(nvars)*ideal_terms;
+
+    unsigned id = ALG_NO_ID;
+    if (ok && session.graph_exists(graphid) && nvars > 0) {
+      id = ffAlgNodePolyDiv(
+        graphid,
+        inputnodes.data(), inputnodes.size(),
+        vars.list.data(), nvars,
+        target_size_vec.data(), target_size_vec.size(),
+        target_source_vec.data(),
+        target_exponent_vec.data(),
+        ideal_size_vec.data(), ideal_size_vec.size(),
+        ideal_source_vec.data(),
+        ideal_exponent_vec.data());
+    }
+
+    MLReleaseInteger32List(mlp, target_sizes, n_target_sizes);
+    MLReleaseInteger32List(mlp, target_sources, n_target_sources);
+    MLReleaseInteger32List(mlp, target_exponents, n_target_exponents);
+    MLReleaseInteger32List(mlp, ideal_sizes, n_ideal_sizes);
+    MLReleaseInteger32List(mlp, ideal_sources, n_ideal_sources);
+    MLReleaseInteger32List(mlp, ideal_exponents, n_ideal_exponents);
+
+    MLNewPacket(mlp);
+    if (id == ALG_NO_ID || id == FF_ERROR)
+      MLPutSymbol(mlp, "$Failed");
+    else
+      MLPutInteger32(mlp, id);
 
     return LIBRARY_NO_ERROR;
   }

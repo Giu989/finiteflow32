@@ -10,11 +10,13 @@ Stage 1 commands:
 ```bash
 PREFIX="$PWD/_install/finiteflow32" ./scripts/build_finiteflow32.sh
 ./scripts/test_finiteflow32_arithmetic.sh
+./scripts/test_poly_reduction.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_smoke.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_tutorial.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_multiprime.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_add_one.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_msolve_prime.sh
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div.sh
 ```
 
 Or run the complete build/install/test pipeline:

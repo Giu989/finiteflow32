@@ -116,6 +116,8 @@ set(FFLOW_SOURCES
     src/alg_mp_reconstruction.cc
     src/ratfun_parser.cc
     src/ratexpr_parser.cc
+    src/poly_reduction.cc
+    src/alg_poly_reduction.cc
 
     src/mp_functions.cc
     src/mp_gcd.cc
@@ -175,6 +177,7 @@ set(FFLOW_HEADERS
     include/fflow/univariate_reconstruction.hh
     include/fflow/ratfun_parser.hh
     include/fflow/ratexpr_parser.hh
+    include/fflow/poly_reduction.hh
 
     include/fflow/mp_common.hh
     include/fflow/mp_functions.hh
@@ -186,6 +189,7 @@ set(FFLOW_HEADERS
     include/fflow/alg_linear_fit.hh
     include/fflow/alg_reconstruction.hh
     include/fflow/alg_mp_reconstruction.hh
+    include/fflow/alg_poly_reduction.hh
 
     include/fflow/format.h
     include/fflow/ostream.h
@@ -235,6 +239,7 @@ set(TEST_TARGETS
     testjson
     testbench
     testfiniteflow32_arithmetic
+    testpoly_reduction
     )
 
 set(TEST_CTARGETS

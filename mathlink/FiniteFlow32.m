@@ -64,6 +64,7 @@ FFSetLearningOptions::usage = "FFLearn[graph,node,options...] sets the learning 
 FFLaurentLearn::usage = "FFLaurentLearn[graph] executes the learning phase on a Laurent expansion node, which must be the output node of graph.  It returns a list of two lists.  The first contains the starting power of the Laurent expansion of each element.  The second contains the order of the expansion requested for each element."
 FFDenseSolverLearn::usage = "FFDenseSolverLearn[graph,vars] executes the learning phase on a dense solver or a linear fit, with unknowns vars, which must be the output node of graph."
 FFSparseSolverLearn::usage = "FFSparseSolverLearn[graph,vars] executes the learning phase on a sparse solver, with unknowns vars, which must be the output node of graph."
+FFPolyDivLearn::usage = "FFPolyDivLearn[graph,vars] executes the learning phase on a polynomial-division node and returns the learned irreducible monomial basis in the variables vars."
 FFDenseSolverGetInfo::usage = "FFDenseSolverGetInfo[graph,node,vars] returns the info about a dense solver or a linear fit, with unknowns vars, obtained during the learning step, namely dependent variables, independent variables and zero variables."
 FFSparseSolverGetInfo::usage = "FFSparseSolverGetInfo[graph,node,vars] returns the info on a sparse solver, with unknowns vars, obtained during the learning step, namely dependent variables, independent variables and zero variables."
 FFSolverZeroVars::usage = "FFSolverZeroVars[graph,node,vars] retuns the subset of the unknowns vars which are found to be zero in a solver."
@@ -99,6 +100,7 @@ FFAlgSlice[graph,node,{input},start], with integer start, returns the elements o
 FFAlgAdd::usage = "FFAlgAdd[graph,node,inputs] adds the lists returned by the inputs element-wise and returns the result."
 FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds one to every entry returned by input."
 FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
+FFAlgNodePolyDiv::usage = "FFAlgNodePolyDiv[graph,node,inputs,{targetTakePattern,idealTakePattern},vars] creates a polynomial-reduction node.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}; the targets are reduced modulo the ideal with msolve in degree reverse lexicographic order."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
 FFAlgSparseMatMul::usage = "FFAlgSparseMatMul[graph,node,{input1,input2},r1,c1,c2,nonzerocols1,nonzerocols2] is analogous to FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2] except that input1 and input2 only return the potentially non-vanishing matrix elements of the inputs.  The arguments nonzerocols1 and nonzerocols2 are lists of lists with the potentially non-vanishing columns in each row for the two input matrices respectively."
@@ -223,6 +225,8 @@ FF::noregfun = "No registered function with identifier `1`."
 FF::badregfunvars = "The registered expression `1` depends on `2` variables, but `3` are required."
 FF::badpattern = "Variables `1` match the variables pattern but they are not in the list of unknowns."
 FF::badtakepattern = "Invalid take pattern."
+FF::badpolydivmonomial = "`1` is not a coefficient-free monomial in the variables `2`."
+FF::badpolydivpattern = "Invalid polynomial-division take pattern."
 FF::badsysweights = "Weights must of a list of lists."
 FF::badsysautoweights = "Automatic weights require both \"WeightIdx\" and \"WeightPattern\" options to be set."
 FF::badweqpattern = "Equations non-homogeneous in the weights or invalid weight pattern."
@@ -1060,6 +1064,16 @@ FFSparseSolverLearn[gid_,vars_]:=Module[
   ]
 ];
 
+FFPolyDivLearn[gid_,vars_]:=Module[
+  {learn},
+  Catch[
+    CheckVariables[vars];
+    learn = FFLearn[gid];
+    If[!TrueQ[learn[[0]]==List], Return[learn]];
+    (Times@@(vars^#))&/@learn
+  ]
+];
+
 
 ConvertDenseLearn[learn_,vars_]:=Module[{depv,indepv,zerov},
     {depv,indepv,zerov} = learn;
@@ -1206,6 +1220,54 @@ RegisterAlgAddOne[gid_,inputs_,{}]:=Catch[FFAlgAddOneImplem[gid,inputs]];
 FFAlgAddOne[gid_,id_,{input_}]:=FFRegisterAlgorithm[RegisterAlgAddOne,gid,id,{input},{}];
 FFAddOne[gid_,id_,{input_}]:=FFAlgAddOne[gid,id,{input}];
 FFAddOne[gid_,id_,input_]:=FFAlgAddOne[gid,id,{input}];
+
+
+PolyDivMonomialExponents[monomial_,vars_]:=Module[{exp,canon},
+  If[!TrueQ[PolynomialQ[monomial,vars]], Message[FF::badpolydivmonomial,monomial,vars]; Throw[$Failed]];
+  exp = Exponent[monomial,vars];
+  If[!TrueQ[VectorQ[exp,IntegerQ[#] && #>=0&]], Message[FF::badpolydivmonomial,monomial,vars]; Throw[$Failed]];
+  canon = Times@@(vars^exp);
+  If[!TrueQ[Expand[monomial-canon]===0], Message[FF::badpolydivmonomial,monomial,vars]; Throw[$Failed]];
+  exp
+];
+
+PolyDivTakePatternToInternal[pattern_,vars_]:=Module[
+  {sizes={},sources={},exponents={},source,monomial},
+  If[!ListQ[pattern], Message[FF::badpolydivpattern]; Throw[$Failed]];
+  Do[
+    If[!ListQ[poly], Message[FF::badpolydivpattern]; Throw[$Failed]];
+    AppendTo[sizes,Length[poly]];
+    Do[
+      If[!TrueQ[ListQ[term] && Length[term]==2 && ListQ[term[[1]]] && Length[term[[1]]]==2],
+        Message[FF::badpolydivpattern]; Throw[$Failed]
+      ];
+      source = term[[1]];
+      If[!TrueQ[And@@(IntegerQ/@source) && Min[source]>=1],
+        Message[FF::badpolydivpattern]; Throw[$Failed]
+      ];
+      monomial = term[[2]];
+      sources = Join[sources,source-1];
+      exponents = Join[exponents,PolyDivMonomialExponents[monomial,vars]];
+    ,{term,poly}];
+  ,{poly,pattern}];
+  {CheckedUInt32List[sizes],CheckedUInt32List[sources],CheckedUInt32List[exponents]}
+];
+
+RegisterAlgNodePolyDiv[gid_,inputs_,{patterns_,vars_}]:=Module[
+  {target,ideal,varstrings},
+  Catch[
+    CheckVariables[vars];
+    If[!TrueQ[ListQ[patterns] && Length[patterns]==2], Message[FF::badpolydivpattern]; Throw[$Failed]];
+    target = PolyDivTakePatternToInternal[patterns[[1]],vars];
+    ideal = PolyDivTakePatternToInternal[patterns[[2]],vars];
+    varstrings = ToString[#,InputForm]&/@vars;
+    FFAlgNodePolyDivImplem[gid,inputs,varstrings,
+      target[[1]],target[[2]],target[[3]],
+      ideal[[1]],ideal[[2]],ideal[[3]]]
+  ]
+];
+FFAlgNodePolyDiv[gid_,id_,inputs_List,patterns_,vars_]:=
+  FFRegisterAlgorithm[RegisterAlgNodePolyDiv,gid,id,inputs,{patterns,vars}];
 
 
 RegisterAlgMul[gid_,inputs_,{}]:=Catch[FFAlgMulImplem[gid,inputs]];
@@ -2070,6 +2132,7 @@ FFLoadLibObjects[] := Module[
     FFAlgSliceImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_slice", LinkObject, LinkObject];
     FFAlgAddImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add", LinkObject, LinkObject];
     FFAlgAddOneImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add_one", LinkObject, LinkObject];
+    FFAlgNodePolyDivImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_node_poly_div", LinkObject, LinkObject];
     FFAlgMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mul", LinkObject, LinkObject];
     FFAlgMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mat_mul", LinkObject, LinkObject];
     FFAlgSparseMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_sparse_mat_mul", LinkObject, LinkObject];

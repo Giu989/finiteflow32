@@ -73,3 +73,42 @@ The parser should accept this list format, split top-level polynomial entries, a
 - Version B: cache variable names, parsed take patterns, exponent vectors, learned monomial basis, and msolve path.
 - Version C: investigate lower-overhead execution or direct linkage only after correctness tests are stable.
 
+## Implemented Stages 2-6
+
+The reusable native prototype layer lives in `include/fflow/poly_reduction.hh`
+and `src/poly_reduction.cc`.
+
+- Stage 2: `msolve_normal_forms_text` accepts a prime, variables, ideal
+  generators, and target polynomials as text; writes an msolve input file; runs
+  `msolve -n`; parses the bracketed normal-form output; and reports clear
+  errors for missing msolve, unsupported primes, failed execution, and malformed
+  output.
+- Stage 3: `SparsePolynomial`, `PolyMonomial`, and `PolyTerm` provide sparse
+  polynomial storage with coefficients modulo the active prime, exponent-vector
+  monomials, deterministic degree reverse lexicographic sorting, msolve input
+  rendering, msolve output parsing, like-term collection, and zero-term removal.
+- Stage 4: `PolyTakePattern` and helpers convert compact flattened
+  source/exponent arrays into take patterns, validate input-node and
+  output-index bounds, and expand evaluated input-node data into concrete sparse
+  polynomials.
+- Stage 5: `learn_poly_reduction_basis` accepts evaluated input slices,
+  expands the target and ideal take patterns for each slice, calls msolve
+  normal-form mode, collects the monomials appearing in the reduced targets,
+  sorts the learned basis in degree reverse lexicographic order, reports the
+  flattened runtime output size, and fails clearly when strict learning sees an
+  inconsistent monomial basis across slices.
+- Stage 6: `PolyDiv` is a native FiniteFlow32 algorithm node exposed as
+  `FFAlgNodePolyDiv` through the C API, LibraryLink, and Mathematica package.
+  Its learning phase stores the grevlex monomial basis, `FFPolyDivLearn`
+  formats that basis as Mathematica monomials, and runtime evaluation reduces
+  targets with msolve and returns the flattened coefficient matrix in the
+  learned basis.  Runtime normal forms containing a monomial outside the
+  learned basis fail with a clear error.
+
+The native test target `testpoly_reduction`, run through
+`scripts/test_poly_reduction.sh`, covers these stages independently of the
+FiniteFlow graph system.
+
+The Mathematica integration test `tests/mathematica/poly_div.m`, run through
+`scripts/test_mathematica_poly_div.sh`, covers graph construction, learning,
+and runtime evaluation through the public Mathematica API.

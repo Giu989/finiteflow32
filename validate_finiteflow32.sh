@@ -8,10 +8,12 @@ export PREFIX="${prefix}"
 
 "${script_dir}/scripts/build_finiteflow32.sh"
 "${script_dir}/scripts/test_finiteflow32_arithmetic.sh"
+"${script_dir}/scripts/test_poly_reduction.sh"
 "${script_dir}/scripts/test_mathematica_smoke.sh"
 "${script_dir}/scripts/test_mathematica_tutorial.sh"
 "${script_dir}/scripts/test_mathematica_multiprime.sh"
 "${script_dir}/scripts/test_mathematica_add_one.sh"
 "${script_dir}/scripts/test_mathematica_msolve_prime.sh"
+"${script_dir}/scripts/test_mathematica_poly_div.sh"
 
 echo "FiniteFlow32 validation passed."

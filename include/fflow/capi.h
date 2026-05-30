@@ -333,6 +333,19 @@ extern "C" {
   FFNode ffAlgAdd(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes);
   FFNode ffAlgAddOne(FFGraph graph, FFNode in_node);
+
+  FFNode ffAlgNodePolyDiv(FFGraph graph,
+                          const FFNode * in_nodes, unsigned n_in_nodes,
+                          const FFCStr * variables, unsigned n_variables,
+                          const unsigned * target_poly_sizes,
+                          unsigned n_targets,
+                          const unsigned * target_sources,
+                          const unsigned * target_exponents,
+                          const unsigned * ideal_poly_sizes,
+                          unsigned n_ideal,
+                          const unsigned * ideal_sources,
+                          const unsigned * ideal_exponents);
+
   FFNode ffAlgMul(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes);
 

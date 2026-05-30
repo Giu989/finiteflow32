@@ -91,6 +91,12 @@ Run the native finiteflow32 arithmetic test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_finiteflow32_arithmetic.sh
 ```
 
+Run the native msolve normal-form prototype test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_poly_reduction.sh
+```
+
 Run the Mathematica multi-prime reconstruction test:
 
 ```bash
@@ -107,6 +113,12 @@ Run the Mathematica msolve prime-compatibility test:
 
 ```bash
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_msolve_prime.sh
+```
+
+Run the Mathematica polynomial-division node test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_poly_div.sh
 ```
 
 Run the full validation pipeline:
