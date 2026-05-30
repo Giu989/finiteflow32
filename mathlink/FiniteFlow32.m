@@ -102,7 +102,11 @@ FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds 
 FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
 FFAlgNodePolyDiv::usage = "FFAlgNodePolyDiv[graph,node,inputs,{targetTakePattern,idealTakePattern},vars] creates a polynomial-reduction node.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}; the targets are reduced modulo the ideal with msolve in degree reverse lexicographic order."
 FFAlgPolyDiv::usage = "FFAlgPolyDiv[graph,node,targets,ideal,variables,parameters] creates coefficient-evaluation nodes for symbolic polynomial targets and ideal generators, using the explicit parameter order in parameters, builds the corresponding take patterns, and calls FFAlgNodePolyDiv.  The only supported option is MonomialOrder -> \"DegreeReverseLexicographic\"."
-LeadingMonomials::usage = "LeadingMonomials[ideal,variables] uses msolve to compute the leading monomials of the degree-reverse-lexicographic Groebner basis of ideal.  Symbols in ideal that are not listed in variables are treated as parameters and are substituted by random nonzero integers below 2^31 before calling msolve.  The result is sorted in the FiniteFlow32 polynomial-division convention, with the highest-weight monomial first."
+FFAlgNodeGroebner::usage = "FFAlgNodeGroebner[graph,node,inputs,idealTakePattern,variables] creates a Groebner-basis node using msolve.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}.  Options are MonomialOrder -> \"DegreeReverseLexicographic\" and EliminateVariables -> {}."
+FFAlgGroebner::usage = "FFAlgGroebner[graph,node,ideal,variables,parameters] creates coefficient-evaluation nodes for symbolic ideal generators, using the explicit parameter order in parameters, builds the corresponding take pattern, and calls FFAlgNodeGroebner.  Options are MonomialOrder -> \"DegreeReverseLexicographic\" and EliminateVariables -> {}."
+FFGroebnerLearn::usage = "FFGroebnerLearn[graph] executes the learning phase on a Groebner-basis node and returns the learned monomial support of each Groebner-basis polynomial using the variables recorded on the graph output node.  FFGroebnerLearn[graph,vars] accepts either the surviving variables or, for an eliminating Groebner node, the full variable list recorded during node construction.  EliminateVariables -> {...} can be supplied as an explicit fallback."
+EliminateVariables::usage = "EliminateVariables is an option for FFAlgNodeGroebner and FFAlgGroebner specifying polynomial variables to eliminate with msolve's block-elimination order."
+LeadingMonomials::usage = "LeadingMonomials[ideal,variables] uses msolve to compute the leading monomials of the degree-reverse-lexicographic Groebner basis of ideal.  LeadingMonomials[ideal,variables,eliminate] uses msolve's block-elimination order to eliminate the listed variables and returns leading monomials in the surviving variables.  Symbols in ideal that are not listed in variables are treated as parameters and are substituted by random nonzero integers below 2^31 before calling msolve.  The result is sorted in the FiniteFlow32 polynomial-division convention, with the highest-weight monomial first."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
 FFAlgSparseMatMul::usage = "FFAlgSparseMatMul[graph,node,{input1,input2},r1,c1,c2,nonzerocols1,nonzerocols2] is analogous to FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2] except that input1 and input2 only return the potentially non-vanishing matrix elements of the inputs.  The arguments nonzerocols1 and nonzerocols2 are lists of lists with the potentially non-vanishing columns in each row for the two input matrices respectively."
@@ -236,8 +240,16 @@ FF::badpolydivparams = "Invalid polynomial-division parameter list `1`.  Paramet
 FF::badpolydivpoly = "`1` is not a polynomial in the polynomial variables `2`."
 FF::badpolydivcoeff = "Invalid coefficient expression `1`.  Coefficients must be rational functions of the parameters `2`."
 FF::badpolydivcoeffnode = "Could not create the internal coefficient-evaluation node for FFAlgPolyDiv."
+FF::badgroebneroption = "Option `1` is not supported by FFAlgGroebner."
+FF::badgroebnerorder = "FFAlgGroebner only supports MonomialOrder -> \"DegreeReverseLexicographic\"."
+FF::badgroebnerelim = "Invalid Groebner eliminated-variable list `1` for variables `2`."
+FF::badgroebnerideal = "Invalid Groebner ideal."
+FF::badgroebnercoeffnode = "Could not create the internal coefficient-evaluation node for FFAlgGroebner."
+FF::badgroebnerlearnvars = "FFGroebnerLearn could not determine Groebner variables automatically.  Pass the surviving variables explicitly, or pass the full variable list with EliminateVariables -> {...}."
+FF::badgroebnerlearnshape = "FFGroebnerLearn received learned exponent-vector lengths `1`, which do not match the variable list `2` of length `3`."
 FF::badleadingideal = "LeadingMonomials expects a non-empty list of ideal generators."
 FF::badleadingvars = "LeadingMonomials expects a non-empty list of distinct symbolic variables; got `1`."
+FF::badleadingelim = "LeadingMonomials expects a list of distinct eliminated variables contained in `1`, leaving at least one surviving variable; got `2`."
 FF::badleadingoption = "Option `1` is not supported by LeadingMonomials."
 FF::badleadingorder = "LeadingMonomials only supports MonomialOrder -> \"DegreeReverseLexicographic\"."
 FF::badleadingpoly = "`1` is not a polynomial in the variables `2` after treating all other symbols as parameters."
@@ -431,6 +443,15 @@ If[!TrueQ[FFAlreadyLoaded],
   FFGraphInputs = Association[{}];
   FFNThreads = Automatic;
 ];
+If[!ValueQ[FFGroebnerNodeLearnInfo] || !AssociationQ[FFGroebnerNodeLearnInfo],
+  FFGroebnerNodeLearnInfo = Association[{}]
+];
+If[!ValueQ[FFGroebnerGraphLearnInfo] || !AssociationQ[FFGroebnerGraphLearnInfo],
+  FFGroebnerGraphLearnInfo = Association[{}]
+];
+If[!ValueQ[FFGroebnerGraphOutputNode] || !AssociationQ[FFGroebnerGraphOutputNode],
+  FFGroebnerGraphOutputNode = Association[{}]
+];
 
 FFAlgDebug[]:=Print[{FFGraphId, FFAlgId}];
 
@@ -450,7 +471,10 @@ FFValidateId[graphid_,algid_]:=FFGrapQ[graphid];
 FFValidateId[any___]:=False;
 
 FFRemoveGraphKeys[graphid_]:=(KeyDropFrom[FFGraphId,graphid];
-                                 KeyDropFrom[FFAlgId,Select[FFAllAlgs[],TrueQ[#[[1]]==graphid]&]];);
+                                 KeyDropFrom[FFAlgId,Select[FFAllAlgs[],TrueQ[#[[1]]==graphid]&]];
+                                 KeyDropFrom[FFGroebnerGraphLearnInfo,graphid];
+                                 KeyDropFrom[FFGroebnerGraphOutputNode,graphid];
+                                 KeyDropFrom[FFGroebnerNodeLearnInfo,Select[Keys[FFGroebnerNodeLearnInfo],TrueQ[#[[1]]==graphid]&]];);
 FFDeleteGraph[graphid_]:=If[FFGraphQ[graphid], FFDeleteGraphImplem[FFGraphId[graphid]]; FFRemoveGraphKeys[graphid];];
 FFNewGraph[graphid_]:=(If[FFGraphQ[graphid], FFDeleteGraph[graphid]]; FFGraphId[graphid]=FFNewGraphImplem[]);
 FFNewDummyGraph[graphid_,nparsin_,nparsout_]:=Catch[(If[FFGraphQ[graphid], FFDeleteGraph[graphid]]; FFGraphId[graphid]=FFNewDummyGraphImplem[CheckedInt32[nparsin],CheckedInt32[nparsout]])];
@@ -460,7 +484,15 @@ FFDeleteNode[graphid_,nodeid_]:=Module[{ret},
   ret = $Failed;
   If[FFAlgQ[graphid,nodeid],
     ret = FFDeleteNodeImplem[FFGraphId[graphid],FFAlgId[{graphid,nodeid}]];
-    If[!TrueQ[ret==$Failed], KeyDropFrom[FFAlgId,{{graphid,nodeid}}]];
+    If[!TrueQ[ret==$Failed],
+      KeyDropFrom[FFAlgId,{{graphid,nodeid}}];
+      KeyDropFrom[FFGroebnerNodeLearnInfo,{{graphid,nodeid}}];
+      If[KeyExistsQ[FFGroebnerGraphOutputNode,graphid] &&
+         TrueQ[FFGroebnerGraphOutputNode[graphid] === nodeid],
+        KeyDropFrom[FFGroebnerGraphLearnInfo,graphid];
+        KeyDropFrom[FFGroebnerGraphOutputNode,graphid];
+      ];
+    ];
   ];
   ret
 ];
@@ -496,7 +528,17 @@ FFRegisterAlgorithm[algregfun_, gid_, id_, inputs_, args_List]:=Module[
      True
 ];
 
-FFGraphOutput[graphid_,nodeid_]:=Catch[FFGraphSetOutputImplem[GetGraphId[graphid],GetAlgId[graphid,nodeid]]];
+FFGraphOutput[graphid_,nodeid_]:=Catch[Module[{ret},
+  ret = FFGraphSetOutputImplem[GetGraphId[graphid],GetAlgId[graphid,nodeid]];
+  If[TrueQ[ret==$Failed], Throw[$Failed]];
+  If[KeyExistsQ[FFGroebnerNodeLearnInfo,{graphid,nodeid}],
+    FFGroebnerGraphLearnInfo[graphid] = FFGroebnerNodeLearnInfo[{graphid,nodeid}];
+    FFGroebnerGraphOutputNode[graphid] = nodeid;,
+    KeyDropFrom[FFGroebnerGraphLearnInfo,graphid];
+    KeyDropFrom[FFGroebnerGraphOutputNode,graphid];
+  ];
+  ret
+]];
 
 
 FFGraphCId[graph_]:=Catch[GetGraphId[graph]];
@@ -1093,6 +1135,26 @@ FFPolyDivLearn[gid_,vars_]:=Module[
   ]
 ];
 
+Options[FFGroebnerLearn] = {EliminateVariables -> Automatic};
+
+FFGroebnerLearn[gid_]:=FFGroebnerLearn[gid,Automatic];
+
+FFGroebnerLearn[gid_,opt:(_Rule|_RuleDelayed)..]:=FFGroebnerLearn[gid,Automatic,opt];
+
+FFGroebnerLearn[gid_,vars_,opts___]:=Module[
+  {optRules = {opts}, unsupported, optAssoc, learnVars, learn},
+  Catch[
+    unsupported = GroebnerLearnUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badgroebneroption, unsupported[[1]]]; Throw[$Failed]
+    ];
+    optAssoc = GroebnerOptionAssociation[FFGroebnerLearn, optRules];
+    learnVars = GroebnerLearnVariables[gid, vars, optAssoc[EliminateVariables]];
+    learn = FFLearn[gid];
+    GroebnerLearnToMonomials[learn, learnVars]
+  ]
+];
+
 
 ConvertDenseLearn[learn_,vars_]:=Module[{depv,indepv,zerov},
     {depv,indepv,zerov} = learn;
@@ -1427,6 +1489,187 @@ FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := (
   $Failed
 );
 
+Options[FFAlgNodeGroebner] = {
+  MonomialOrder -> "DegreeReverseLexicographic",
+  EliminateVariables -> {}
+};
+
+Options[FFAlgGroebner] = Options[FFAlgNodeGroebner];
+
+GroebnerUnsupportedOptionNames[opts_] := Module[
+  {badNonRules, names},
+  badNonRules = Select[opts, !MatchQ[#,_Rule|_RuleDelayed]&];
+  If[Length[badNonRules] != 0, Return[badNonRules]];
+  names = GroebnerCanonicalOptionName /@ opts[[All,1]];
+  Select[names, !MemberQ[{MonomialOrder, EliminateVariables}, #]&]
+];
+
+GroebnerLearnUnsupportedOptionNames[opts_] := Module[
+  {badNonRules, names},
+  badNonRules = Select[opts, !MatchQ[#,_Rule|_RuleDelayed]&];
+  If[Length[badNonRules] != 0, Return[badNonRules]];
+  names = GroebnerCanonicalOptionName /@ opts[[All,1]];
+  Select[names, !MemberQ[{EliminateVariables}, #]&]
+];
+
+GroebnerCanonicalOptionName[name_] := Switch[name,
+  MonomialOrder | "MonomialOrder", MonomialOrder,
+  EliminateVariables | "EliminateVariables", EliminateVariables,
+  _, name
+];
+
+GroebnerOptionAssociation[head_, opts_] := Module[
+  {optAssoc, name},
+  optAssoc = Association[Options[head]];
+  Do[
+    name = GroebnerCanonicalOptionName[rule[[1]]];
+    optAssoc[name] = rule[[2]],
+    {rule, opts}
+  ];
+  optAssoc
+];
+
+GroebnerValidateEliminate[elim_, vars_] := Module[
+  {eliminated, surviving},
+  If[!TrueQ[ListQ[elim] && AllTrue[elim, MatchQ[#,_Symbol]&] &&
+            DuplicateFreeQ[elim] && AllTrue[elim, MemberQ[vars, #]&]],
+    Message[FF::badgroebnerelim, elim, vars]; Throw[$Failed]
+  ];
+  eliminated = Select[vars, MemberQ[elim, #]&];
+  surviving = Select[vars, !MemberQ[elim, #]&];
+  If[Length[surviving] == 0,
+    Message[FF::badgroebnerelim, elim, vars]; Throw[$Failed]
+  ];
+  {eliminated, surviving}
+];
+
+GroebnerEliminateIndices[elim_, vars_] :=
+  ((FirstPosition[vars, #][[1]] - 1)& /@ Select[vars, MemberQ[elim, #]&]);
+
+GroebnerSurvivingVariables[vars_, elim_] :=
+  Select[vars, !MemberQ[elim, #]&];
+
+GroebnerSetLearnInfo[gid_, id_, vars_, elim_] := (
+  FFGroebnerNodeLearnInfo[{gid,id}] = {vars, GroebnerSurvivingVariables[vars, elim], elim};
+  True
+);
+
+GroebnerLearnVariables[gid_, vars_, elim_] := Module[
+  {hasMeta, meta, allVars, survivingVars, eliminatedVars, learnVars},
+  hasMeta = KeyExistsQ[FFGroebnerGraphLearnInfo, gid];
+  If[TrueQ[vars === Automatic],
+    If[!TrueQ[hasMeta],
+      Message[FF::badgroebnerlearnvars]; Throw[$Failed]
+    ];
+    Return[FFGroebnerGraphLearnInfo[gid][[2]]]
+  ];
+
+  learnVars = PolyDivValidateVariables[vars];
+  If[!TrueQ[elim === Automatic],
+    GroebnerValidateEliminate[elim, learnVars];
+    Return[GroebnerSurvivingVariables[learnVars, elim]]
+  ];
+
+  If[TrueQ[hasMeta],
+    {allVars, survivingVars, eliminatedVars} = FFGroebnerGraphLearnInfo[gid];
+    If[TrueQ[learnVars === allVars] || TrueQ[learnVars === survivingVars],
+      Return[survivingVars]
+    ];
+  ];
+
+  learnVars
+];
+
+GroebnerLearnToMonomials[learn_, vars_] := Module[
+  {lens},
+  If[!TrueQ[learn[[0]]==List], Return[learn]];
+  lens = DeleteDuplicates[
+    Cases[learn, v_List /; VectorQ[v, IntegerQ] :> Length[v],
+          {0, Infinity}]
+  ];
+  If[Length[lens] != 0 && !TrueQ[lens == {Length[vars]}],
+    Message[FF::badgroebnerlearnshape, lens, vars, Length[vars]];
+    Throw[$Failed]
+  ];
+  ((Times@@(vars^#))&/@#)&/@learn
+];
+
+RegisterAlgNodeGroebner[gid_,inputs_,{pattern_,vars_,elim_,order_}]:=Module[
+  {ideal, varstrings, elimIndices},
+  Catch[
+    If[!TrueQ[order === "DegreeReverseLexicographic"],
+      Message[FF::badgroebnerorder]; Throw[$Failed]
+    ];
+    CheckVariables[vars];
+    GroebnerValidateEliminate[elim, vars];
+    ideal = PolyDivTakePatternToInternal[pattern, vars];
+    varstrings = ToString[#,InputForm]&/@vars;
+    elimIndices = CheckedUInt32List[GroebnerEliminateIndices[elim, vars]];
+    FFAlgNodeGroebnerImplem[gid, inputs, varstrings, elimIndices,
+                            ideal[[1]], ideal[[2]], ideal[[3]]]
+  ]
+];
+
+FFAlgNodeGroebner[gid_,id_,inputs_List,pattern_,vars_List,opts___] := Module[
+  {optRules = {opts}, unsupported, optAssoc, order, elim, ret},
+  Catch[
+    unsupported = GroebnerUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badgroebneroption, unsupported[[1]]]; Throw[$Failed]
+    ];
+    optAssoc = GroebnerOptionAssociation[FFAlgNodeGroebner, optRules];
+    order = optAssoc[MonomialOrder];
+    elim = optAssoc[EliminateVariables];
+    ret = FFRegisterAlgorithm[RegisterAlgNodeGroebner, gid, id, inputs,
+                              {pattern, vars, elim, order}];
+    If[TrueQ[ret], GroebnerSetLearnInfo[gid, id, vars, elim]];
+    ret
+  ]
+];
+
+FFAlgGroebner[gid_,id_,ideal_List,variables_List,parameters_List,opts___] := Module[
+  {optRules = {opts}, unsupported, optAssoc, params, vars, order, elim,
+   idealInfo, coeffs = {}, coeffNode, inputNode, coeffOk},
+  Catch[
+    unsupported = GroebnerUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badgroebneroption, unsupported[[1]]]; Throw[$Failed]
+    ];
+    optAssoc = GroebnerOptionAssociation[FFAlgGroebner, optRules];
+    order = optAssoc[MonomialOrder];
+    If[!TrueQ[order === "DegreeReverseLexicographic"],
+      Message[FF::badgroebnerorder]; Throw[$Failed]
+    ];
+    vars = PolyDivValidateVariables[variables];
+    elim = optAssoc[EliminateVariables];
+    GroebnerValidateEliminate[elim, vars];
+    If[!TrueQ[ListQ[ideal] && Length[ideal] > 0],
+      Message[FF::badgroebnerideal]; Throw[$Failed]
+    ];
+
+    idealInfo = PolyDivExtractTakePattern[ideal, vars, coeffs];
+    coeffs = idealInfo[[2]];
+    params = PolyDivValidateParameters[parameters, vars, coeffs];
+    coeffs = PolyDivValidateCoefficient[#, params]&/@coeffs;
+
+    coeffNode = Unique["ffgroebnercoeff$"];
+    coeffOk = If[Length[params] == 0,
+      FFAlgRatNumEval[gid, coeffNode, coeffs],
+      inputNode = FFGraphInputNode[gid];
+      FFAlgRatFunEval[gid, coeffNode, {inputNode}, params, coeffs]
+    ];
+    If[!TrueQ[coeffOk], Message[FF::badgroebnercoeffnode]; Throw[$Failed]];
+
+    FFAlgNodeGroebner[gid, id, {coeffNode}, idealInfo[[1]], vars,
+                      MonomialOrder -> order, EliminateVariables -> elim]
+  ]
+];
+
+FFAlgGroebner[gid_,id_,ideal_List,variables_List,opts___] := (
+  Message[FF::badpolydivparams, Missing["Required"], variables, ideal];
+  $Failed
+);
+
 Options[LeadingMonomials] = {
   MonomialOrder -> "DegreeReverseLexicographic",
   "Prime" -> Automatic,
@@ -1491,6 +1734,20 @@ LeadingValidateInputs[ideal_, vars_] := Module[
     ];
   ,{poly, ideal}];
   {vars, params}
+];
+
+LeadingValidateEliminate[elim_, vars_] := Module[
+  {eliminated, surviving},
+  If[!TrueQ[ListQ[elim] && AllTrue[elim, MatchQ[#,_Symbol]&] &&
+            DuplicateFreeQ[elim] && AllTrue[elim, MemberQ[vars, #]&]],
+    Message[FF::badleadingelim, vars, elim]; Throw[$Failed]
+  ];
+  eliminated = Select[vars, MemberQ[elim, #]&];
+  surviving = Select[vars, !MemberQ[elim, #]&];
+  If[Length[surviving] == 0,
+    Message[FF::badleadingelim, vars, elim]; Throw[$Failed]
+  ];
+  {eliminated, surviving}
 ];
 
 LeadingParameterRules[params_, seed_, attempt_Integer] := Module[
@@ -1576,7 +1833,8 @@ LeadingShellQuote[s_String] :=
     "`" -> "\\`"
   }] <> "\"";
 
-LeadingRunMsolve[executable_String, input_String, keepTemps_] := Module[
+LeadingRunMsolve[executable_String, input_String, keepTemps_,
+                 eliminationCount_:0] := Module[
   {tmpdir, inputFile, outputFile, exitCode, output, cleanup, command},
   tmpdir = Quiet[Check[
     CreateDirectory[
@@ -1597,8 +1855,10 @@ LeadingRunMsolve[executable_String, input_String, keepTemps_] := Module[
     cleanup[]; Return[{$Failed, "could not write msolve input file"}]
   ];
   command = StringRiffle[
-    LeadingShellQuote /@ {executable, "-f", inputFile, "-o", outputFile,
-                          "-g", "1", "-v", "0"},
+    LeadingShellQuote /@ Join[
+      {executable, "-f", inputFile, "-o", outputFile, "-g", "1", "-v", "0"},
+      If[eliminationCount > 0, {"-e", ToString[eliminationCount]}, {}]
+    ],
     " "
   ];
   exitCode = Quiet[Check[Run[command], $Failed]];
@@ -1656,7 +1916,7 @@ LeadingGrevlexLessQ[a_List, b_List] := Module[
   Length[a] < Length[b]
 ];
 
-LeadingParseOutput[text_String, varNames_List, vars_List] := Module[
+LeadingParseOutputExponents[text_String, varNames_List] := Module[
   {body, starts, ends, content, pieces, exps},
   body = StringRiffle[
     Select[StringSplit[text, "\n"], !StringStartsQ[StringTrim[#], "#"]&],
@@ -1672,9 +1932,30 @@ LeadingParseOutput[text_String, varNames_List, vars_List] := Module[
   pieces = DeleteCases[StringTrim /@ StringSplit[content, ","], ""];
   exps = LeadingParseMsolveMonomial[#, varNames]& /@ pieces;
   If[MemberQ[exps, $Failed], Return[$Failed]];
-  exps = DeleteDuplicates[exps];
-  exps = Sort[exps, LeadingGrevlexLessQ[#2, #1]&];
-  Times@@MapThread[Power, {vars, #}]& /@ exps
+  DeleteDuplicates[exps]
+];
+
+LeadingExponentsToMonomials[exps_List, vars_List] := Module[
+  {ordered},
+  ordered = Sort[DeleteDuplicates[exps], LeadingGrevlexLessQ[#2, #1]&];
+  Times@@MapThread[Power, {vars, #}]& /@ ordered
+];
+
+LeadingParseOutput[text_String, varNames_List, vars_List] := Module[
+  {exps},
+  exps = LeadingParseOutputExponents[text, varNames];
+  If[TrueQ[exps === $Failed], Return[$Failed]];
+  LeadingExponentsToMonomials[exps, vars]
+];
+
+LeadingParseEliminationOutput[text_String, varNames_List, eliminatedCount_Integer,
+                              survivingVars_List] := Module[
+  {exps, survivingExps},
+  exps = LeadingParseOutputExponents[text, varNames];
+  If[TrueQ[exps === $Failed], Return[$Failed]];
+  survivingExps = Select[exps, Total[Take[#, eliminatedCount]] == 0&];
+  survivingExps = Drop[#, eliminatedCount]& /@ survivingExps;
+  LeadingExponentsToMonomials[survivingExps, survivingVars]
 ];
 
 LeadingMonomials[ideal_, variables_, opts___] := Module[
@@ -1723,6 +2004,70 @@ LeadingMonomials[ideal_, variables_, opts___] := Module[
         Continue[]
       ];
       parsed = LeadingParseOutput[run[[1]], varNames, vars];
+      If[TrueQ[parsed === $Failed],
+        Message[FF::leadmsolveparse, run[[1]]]; Throw[$Failed]
+      ];
+      result = parsed;
+      success = True;
+      Break[],
+      {attempt, retries}
+    ];
+    If[TrueQ[success],
+      result,
+      Message[FF::leadmsolvefail, lastError]; Throw[$Failed]
+    ]
+  ]
+];
+
+LeadingMonomials[ideal_, variables_, eliminate_List, opts___] := Module[
+  {optRules = {opts}, unsupported, optAssoc, order, prime, retries,
+   executable, keepTemps, vars, params, eliminated, surviving, msolveVars,
+   varNames, seed, specialized, input, run, parsed, result = $Failed,
+   success = False, lastError = "unknown msolve failure"},
+  Catch[
+    unsupported = LeadingUnsupportedOptionNames[optRules];
+    If[Length[unsupported] != 0,
+      Message[FF::badleadingoption, unsupported[[1]]]; Throw[$Failed]
+    ];
+    optAssoc = Association[Options[LeadingMonomials]];
+    Do[optAssoc[rule[[1]]] = rule[[2]], {rule, optRules}];
+    order = optAssoc[MonomialOrder];
+    If[!TrueQ[order === "DegreeReverseLexicographic"],
+      Message[FF::badleadingorder]; Throw[$Failed]
+    ];
+    {vars, params} = LeadingValidateInputs[ideal, variables];
+    {eliminated, surviving} = LeadingValidateEliminate[eliminate, vars];
+    msolveVars = Join[eliminated, surviving];
+    varNames = ToString[#, InputForm]& /@ msolveVars;
+    prime = LeadingMsolvePrime[optAssoc["Prime"]];
+    If[!TrueQ[IntegerQ[prime] && PrimeQ[prime] && 1 < prime < 2^31],
+      Message[FF::badleadingprime, prime]; Throw[$Failed]
+    ];
+    retries = optAssoc["Retries"];
+    If[!TrueQ[IntegerQ[retries] && retries > 0],
+      Message[FF::badleadingretries, retries]; Throw[$Failed]
+    ];
+    executable = LeadingMsolveExecutable[optAssoc["MsolveExecutable"]];
+    If[TrueQ[executable === $Failed],
+      Message[FF::leadnomsolve]; Throw[$Failed]
+    ];
+    seed = optAssoc["RandomSeed"];
+    keepTemps = optAssoc["KeepTemporaryFiles"];
+    Do[
+      specialized = LeadingSpecializeIdeal[ideal, msolveVars, params,
+                                           varNames, prime, seed, attempt];
+      If[TrueQ[specialized === $Failed],
+        lastError = "parameter specialization produced invalid or zero input";
+        Continue[]
+      ];
+      input = LeadingMsolveInput[varNames, prime, specialized[[2]]];
+      run = LeadingRunMsolve[executable, input, keepTemps, Length[eliminated]];
+      If[TrueQ[run[[1]] === $Failed],
+        lastError = run[[2]];
+        Continue[]
+      ];
+      parsed = LeadingParseEliminationOutput[run[[1]], varNames,
+                                             Length[eliminated], surviving];
       If[TrueQ[parsed === $Failed],
         Message[FF::leadmsolveparse, run[[1]]]; Throw[$Failed]
       ];
@@ -2602,6 +2947,7 @@ FFLoadLibObjects[] := Module[
     FFAlgAddImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add", LinkObject, LinkObject];
     FFAlgAddOneImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add_one", LinkObject, LinkObject];
     FFAlgNodePolyDivImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_node_poly_div", LinkObject, LinkObject];
+    FFAlgNodeGroebnerImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_node_groebner", LinkObject, LinkObject];
     FFAlgMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mul", LinkObject, LinkObject];
     FFAlgMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mat_mul", LinkObject, LinkObject];
     FFAlgSparseMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_sparse_mat_mul", LinkObject, LinkObject];

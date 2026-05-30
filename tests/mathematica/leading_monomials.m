@@ -100,6 +100,74 @@ If[!monomialListQ[param1, {x, y}],
   fail["LeadingMonomials returned expressions that are not monomials in the supplied variables"]
 ];
 
+elimBasic = Check[
+  LeadingMonomials[
+    {x + y + z, x*y - 1, z^2 - x},
+    {z, x, y},
+    {z},
+    "RandomSeed" -> 1234
+  ],
+  fail["LeadingMonomials failed on one-variable block elimination"]
+];
+
+If[!TrueQ[elimBasic === {y^3, x^2, x*y}],
+  Print["Expected one-variable elimination leading monomials: ", {y^3, x^2, x*y}];
+  Print["Received one-variable elimination leading monomials: ", elimBasic];
+  fail["LeadingMonomials returned the wrong one-variable elimination leading ideal"]
+];
+
+If[!monomialListQ[elimBasic, {x, y}] || !FreeQ[elimBasic, z],
+  Print["Elimination result: ", elimBasic];
+  fail["LeadingMonomials returned eliminated variables in the one-variable elimination result"]
+];
+
+elimMultiple = Check[
+  LeadingMonomials[
+    {u - x - y, v - x*y, u + v + x},
+    {u, v, x, y},
+    {u, v},
+    "RandomSeed" -> 4321
+  ],
+  fail["LeadingMonomials failed on two-variable block elimination"]
+];
+
+If[!TrueQ[elimMultiple === {x*y}],
+  Print["Expected two-variable elimination leading monomials: ", {x*y}];
+  Print["Received two-variable elimination leading monomials: ", elimMultiple];
+  fail["LeadingMonomials returned the wrong two-variable elimination leading ideal"]
+];
+
+elimOrdered = Check[
+  LeadingMonomials[
+    {x + y + z, x*y - 1, z^2 - x},
+    {z, x, y},
+    {z},
+    "RandomSeed" -> 2468
+  ],
+  fail["LeadingMonomials failed on order-preserving block elimination"]
+];
+
+If[!TrueQ[elimOrdered === {y^3, x^2, x*y}],
+  Print["Expected order-preserving elimination leading monomials: ", {y^3, x^2, x*y}];
+  Print["Received order-preserving elimination leading monomials: ", elimOrdered];
+  fail["LeadingMonomials did not preserve surviving variable order or grevlex order"]
+];
+
+paramElim = Check[
+  LeadingMonomials[
+    {(a + 1) z + x + y, x*y - b, z^2 - x},
+    {z, x, y},
+    {z},
+    "RandomSeed" -> 13579
+  ],
+  fail["LeadingMonomials failed on parameter-dependent block elimination"]
+];
+
+If[!monomialListQ[paramElim, {x, y}] || !FreeQ[paramElim, z],
+  Print["Parameter-dependent elimination result: ", paramElim];
+  fail["LeadingMonomials returned invalid monomials for parameter-dependent elimination"]
+];
+
 expectFailure[
   LeadingMonomials[{}, {x}],
   "empty ideal"
@@ -115,6 +183,18 @@ expectFailure[
 expectFailure[
   LeadingMonomials[{x + 1}, {x + y}],
   "non-symbol variable list"
+];
+expectFailure[
+  LeadingMonomials[{x + y}, {x, y}, {z}],
+  "elimination variable not in variable list"
+];
+expectFailure[
+  LeadingMonomials[{x + y}, {x, y}, {x, x}],
+  "duplicate elimination variable"
+];
+expectFailure[
+  LeadingMonomials[{x + y}, {x, y}, {x, y}],
+  "eliminating all variables"
 ];
 expectFailure[
   LeadingMonomials[{1/(1 + x)}, {x}],

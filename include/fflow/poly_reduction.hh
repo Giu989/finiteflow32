@@ -96,6 +96,26 @@ namespace fflow {
                           std::vector<SparsePolynomial> & normal_forms,
                           MsolveResult * trace = nullptr);
 
+  Ret split_msolve_bracketed_polynomial_list(
+    const std::string & output,
+    std::vector<std::string> & polynomials,
+    std::string * error = nullptr);
+
+  Ret msolve_groebner_text(UInt prime,
+                           const std::vector<std::string> & variables,
+                           const std::vector<std::string> & ideal,
+                           const MsolveOptions & options,
+                           unsigned elimination_count,
+                           MsolveResult & result);
+
+  Ret msolve_groebner(UInt prime,
+                      const std::vector<std::string> & variables,
+                      const std::vector<SparsePolynomial> & ideal,
+                      const MsolveOptions & options,
+                      unsigned elimination_count,
+                      std::vector<SparsePolynomial> & basis,
+                      MsolveResult * trace = nullptr);
+
   struct PolyTakeTerm {
     unsigned input_node = 0;
     unsigned output_index = 0;

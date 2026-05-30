@@ -110,6 +110,61 @@ namespace {
     return out.str();
   }
 
+  std::string render_msolve_ideal_input_(UInt prime,
+                                         const std::vector<std::string> & variables,
+                                         const std::vector<std::string> & ideal)
+  {
+    std::ostringstream out;
+    out << join_(variables, ",") << "\n";
+    out << prime << "\n";
+
+    for (std::size_t i=0; i<ideal.size(); ++i) {
+      out << ideal[i];
+      if (i + 1 != ideal.size())
+        out << ",";
+      out << "\n";
+    }
+
+    return out.str();
+  }
+
+  bool extract_bracket_body_(const std::string & output,
+                             std::string & body,
+                             std::string * error)
+  {
+    std::string text;
+    std::istringstream in(output);
+    std::string line;
+    while (std::getline(in, line)) {
+      std::string trimmed = trim_(line);
+      if (!trimmed.empty() && trimmed[0] == '#')
+        continue;
+      text += line;
+      text += "\n";
+    }
+
+    text = trim_(text);
+    if (text.empty()) {
+      set_error_(error, "empty msolve output");
+      return false;
+    }
+
+    if (text[text.size()-1] == ':')
+      text.resize(text.size()-1);
+    text = trim_(text);
+
+    std::size_t begin = text.find('[');
+    std::size_t end = text.rfind(']');
+    if (begin == std::string::npos || end == std::string::npos ||
+        begin >= end) {
+      set_error_(error, "msolve output is not a bracketed list");
+      return false;
+    }
+
+    body = text.substr(begin + 1, end - begin - 1);
+    return true;
+  }
+
   bool make_temp_dir_(const std::string & base, std::string & out,
                       std::string * error)
   {
@@ -307,6 +362,35 @@ namespace {
               [](const PolyMonomial & a, const PolyMonomial & b)
               {
                 return grevlex_less(b, a);
+              });
+  }
+
+  const PolyMonomial * leading_monomial_(const SparsePolynomial & poly)
+  {
+    if (poly.terms.empty())
+      return nullptr;
+
+    const PolyMonomial * best = &poly.terms[0].monomial;
+    for (const PolyTerm & term : poly.terms) {
+      if (grevlex_less(*best, term.monomial))
+        best = &term.monomial;
+    }
+    return best;
+  }
+
+  void sort_groebner_basis_(std::vector<SparsePolynomial> & basis, UInt prime)
+  {
+    for (SparsePolynomial & poly : basis)
+      poly.normalize(prime);
+
+    std::sort(basis.begin(), basis.end(),
+              [](const SparsePolynomial & a, const SparsePolynomial & b)
+              {
+                const PolyMonomial * la = leading_monomial_(a);
+                const PolyMonomial * lb = leading_monomial_(b);
+                if (!la || !lb)
+                  return bool(lb);
+                return grevlex_less(*lb, *la);
               });
   }
 
@@ -721,6 +805,123 @@ namespace {
     return SUCCESS;
   }
 
+  Ret split_msolve_bracketed_polynomial_list(
+    const std::string & output,
+    std::vector<std::string> & polynomials,
+    std::string * error)
+  {
+    polynomials.clear();
+
+    std::string body;
+    if (!extract_bracket_body_(output, body, error))
+      return FAILED;
+
+    std::size_t begin = 0;
+    while (begin <= body.size()) {
+      std::size_t end = body.find(',', begin);
+      if (end == std::string::npos)
+        end = body.size();
+      std::string poly = trim_(body.substr(begin, end - begin));
+      if (!poly.empty())
+        polynomials.push_back(poly);
+      begin = end + 1;
+    }
+
+    return SUCCESS;
+  }
+
+  Ret msolve_groebner_text(UInt prime,
+                           const std::vector<std::string> & variables,
+                           const std::vector<std::string> & ideal,
+                           const MsolveOptions & options,
+                           unsigned elimination_count,
+                           MsolveResult & result)
+  {
+    result = MsolveResult();
+    result.prime = prime;
+
+    if (prime == 0 || prime >= (UInt(1) << 31)) {
+      result.error = "msolve Groebner basis requires a prime below 2^31";
+      return FAILED;
+    }
+    if (variables.empty()) {
+      result.error = "msolve input requires at least one variable";
+      return FAILED;
+    }
+    if (ideal.empty()) {
+      result.error = "msolve Groebner input requires at least one ideal generator";
+      return FAILED;
+    }
+    if (elimination_count >= variables.size() && elimination_count != 0) {
+      result.error = "msolve Groebner elimination leaves no surviving variables";
+      return FAILED;
+    }
+
+    result.executable = options.executable;
+    if (result.executable.empty() && !find_msolve_executable(result.executable)) {
+      result.error = "msolve executable not found";
+      return FAILED;
+    }
+    if (!is_executable_(result.executable)) {
+      result.error = "msolve executable is not executable: " + result.executable;
+      return FAILED;
+    }
+
+    std::string temp_dir;
+    if (!make_temp_dir_(options.tmpdir, temp_dir, &result.error))
+      return FAILED;
+
+    result.input_file = temp_dir + "/input.ms";
+    result.output_file = temp_dir + "/output.ms";
+    const std::string stdout_file = temp_dir + "/stdout.txt";
+    const std::string stderr_file = temp_dir + "/stderr.txt";
+
+    result.input_text = render_msolve_ideal_input_(prime, variables, ideal);
+    if (!write_file_(result.input_file, result.input_text)) {
+      result.error = "could not write msolve input file";
+      if (!options.keep_files)
+        cleanup_temp_(result);
+      return FAILED;
+    }
+
+    result.command = shell_quote_(result.executable) +
+      " -f " + shell_quote_(result.input_file) +
+      " -o " + shell_quote_(result.output_file) +
+      " -g 2 -v 0";
+    if (elimination_count)
+      result.command += " -e " + std::to_string(elimination_count);
+    result.command += " > " + shell_quote_(stdout_file) +
+      " 2> " + shell_quote_(stderr_file);
+
+    int status = std::system(result.command.c_str());
+    int exit_code = normalized_system_status_(status);
+    if (exit_code != 0) {
+      std::string stderr_text;
+      read_file_(stderr_file, stderr_text);
+      result.error = "msolve failed with exit code " + std::to_string(exit_code);
+      if (!stderr_text.empty())
+        result.error += ": " + trim_(stderr_text);
+      if (!options.keep_files)
+        cleanup_temp_(result);
+      return FAILED;
+    }
+
+    if (!read_file_(result.output_file, result.output_text)) {
+      result.error = "could not read msolve output file";
+      if (!options.keep_files)
+        cleanup_temp_(result);
+      return FAILED;
+    }
+
+    Ret ret = split_msolve_bracketed_polynomial_list(
+      result.output_text, result.normal_forms, &result.error);
+
+    if (!options.keep_files)
+      cleanup_temp_(result);
+
+    return ret;
+  }
+
   Ret msolve_normal_forms(UInt prime,
                           const std::vector<std::string> & variables,
                           const std::vector<SparsePolynomial> & ideal,
@@ -750,6 +951,44 @@ namespace {
 
     ret = parse_msolve_polynomial_list(result.output_text, variables, prime,
                                        normal_forms, &result.error);
+    if (trace)
+      *trace = result;
+    return ret;
+  }
+
+  Ret msolve_groebner(UInt prime,
+                      const std::vector<std::string> & variables,
+                      const std::vector<SparsePolynomial> & ideal,
+                      const MsolveOptions & options,
+                      unsigned elimination_count,
+                      std::vector<SparsePolynomial> & basis,
+                      MsolveResult * trace)
+  {
+    basis.clear();
+
+    std::vector<std::string> ideal_text;
+    for (const SparsePolynomial & poly : ideal)
+      ideal_text.push_back(poly.to_msolve(variables, prime));
+
+    MsolveResult result;
+    Ret ret = msolve_groebner_text(prime, variables, ideal_text, options,
+                                   elimination_count, result);
+    if (ret != SUCCESS) {
+      if (trace)
+        *trace = result;
+      return ret;
+    }
+
+    for (const std::string & poly_text : result.normal_forms) {
+      SparsePolynomial poly;
+      ret = parse_msolve_polynomial(poly_text, variables, prime, poly,
+                                    &result.error);
+      if (ret != SUCCESS)
+        break;
+      basis.push_back(poly);
+    }
+    if (ret == SUCCESS)
+      sort_groebner_basis_(basis, prime);
     if (trace)
       *trace = result;
     return ret;

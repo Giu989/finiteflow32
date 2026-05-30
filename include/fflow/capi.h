@@ -346,6 +346,16 @@ extern "C" {
                           const unsigned * ideal_sources,
                           const unsigned * ideal_exponents);
 
+  FFNode ffAlgNodeGroebner(FFGraph graph,
+                           const FFNode * in_nodes, unsigned n_in_nodes,
+                           const FFCStr * variables, unsigned n_variables,
+                           const unsigned * eliminate_variables,
+                           unsigned n_eliminate_variables,
+                           const unsigned * ideal_poly_sizes,
+                           unsigned n_ideal,
+                           const unsigned * ideal_sources,
+                           const unsigned * ideal_exponents);
+
   FFNode ffAlgMul(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes);
 

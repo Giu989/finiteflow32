@@ -23,6 +23,7 @@
 #include <fflow/cached_subgraph.hh>
 #include <fflow/ratexpr_parser.hh>
 #include <fflow/alg_poly_reduction.hh>
+#include <fflow/alg_groebner.hh>
 #include <fflow/capi.h>
 #include <mathlink.h>
 #include <WolframLibrary.h>
@@ -920,6 +921,19 @@ namespace  {
           std::vector<int> exponents(monomial.exponents.begin(),
                                      monomial.exponents.end());
           MLPutInteger32List(mlp, exponents.data(), exponents.size());
+        }
+
+    } else if (dynamic_cast<Groebner*>(alg)) {
+        Groebner & salg = *static_cast<Groebner*>(alg);
+        const auto & support = salg.support();
+        MLPutFunction(mlp, "List", support.size());
+        for (const auto & poly_support : support) {
+          MLPutFunction(mlp, "List", poly_support.size());
+          for (const PolyMonomial & monomial : poly_support) {
+            std::vector<int> exponents(monomial.exponents.begin(),
+                                       monomial.exponents.end());
+            MLPutInteger32List(mlp, exponents.data(), exponents.size());
+          }
         }
 
     } else if (dynamic_cast<LaurentExpansion*>(alg)) {
@@ -3821,6 +3835,82 @@ extern "C" {
     MLReleaseInteger32List(mlp, target_sizes, n_target_sizes);
     MLReleaseInteger32List(mlp, target_sources, n_target_sources);
     MLReleaseInteger32List(mlp, target_exponents, n_target_exponents);
+    MLReleaseInteger32List(mlp, ideal_sizes, n_ideal_sizes);
+    MLReleaseInteger32List(mlp, ideal_sources, n_ideal_sources);
+    MLReleaseInteger32List(mlp, ideal_exponents, n_ideal_exponents);
+
+    MLNewPacket(mlp);
+    if (id == ALG_NO_ID || id == FF_ERROR)
+      MLPutSymbol(mlp, "$Failed");
+    else
+      MLPutInteger32(mlp, id);
+
+    return LIBRARY_NO_ERROR;
+  }
+
+  int fflowml_alg_node_groebner(WolframLibraryData libData, MLINK mlp)
+  {
+    (void)(libData);
+
+    int n_args;
+    MLNewPacket(mlp);
+    MLTestHead(mlp, "List", &n_args);
+
+    int graphid;
+    std::vector<unsigned> inputnodes;
+    MLGetInteger32(mlp, &graphid);
+    get_input_nodes(mlp, inputnodes);
+
+    int nvars = 0;
+    MathStringList vars;
+    MLTestHead(mlp, "List", &nvars);
+    vars.list.resize(nvars);
+    for (int i=0; i<nvars; ++i)
+      vars.get_str(mlp, i);
+
+    int * eliminated = nullptr;
+    int * ideal_sizes = nullptr;
+    int * ideal_sources = nullptr;
+    int * ideal_exponents = nullptr;
+    int n_eliminated = 0;
+    int n_ideal_sizes = 0;
+    int n_ideal_sources = 0;
+    int n_ideal_exponents = 0;
+
+    MLGetInteger32List(mlp, &eliminated, &n_eliminated);
+    MLGetInteger32List(mlp, &ideal_sizes, &n_ideal_sizes);
+    MLGetInteger32List(mlp, &ideal_sources, &n_ideal_sources);
+    MLGetInteger32List(mlp, &ideal_exponents, &n_ideal_exponents);
+
+    std::vector<unsigned> eliminated_vec, ideal_size_vec;
+    std::vector<unsigned> ideal_source_vec, ideal_exponent_vec;
+    bool ok =
+      copy_nonnegative_ints(eliminated, n_eliminated, eliminated_vec) &&
+      copy_nonnegative_ints(ideal_sizes, n_ideal_sizes, ideal_size_vec) &&
+      copy_nonnegative_ints(ideal_sources, n_ideal_sources, ideal_source_vec) &&
+      copy_nonnegative_ints(ideal_exponents, n_ideal_exponents, ideal_exponent_vec);
+
+    unsigned ideal_terms = 0;
+    for (unsigned size : ideal_size_vec)
+      ideal_terms += size;
+
+    ok = ok &&
+      ideal_source_vec.size() == std::size_t(2)*ideal_terms &&
+      ideal_exponent_vec.size() == std::size_t(nvars)*ideal_terms;
+
+    unsigned id = ALG_NO_ID;
+    if (ok && session.graph_exists(graphid) && nvars > 0) {
+      id = ffAlgNodeGroebner(
+        graphid,
+        inputnodes.data(), inputnodes.size(),
+        vars.list.data(), nvars,
+        eliminated_vec.data(), eliminated_vec.size(),
+        ideal_size_vec.data(), ideal_size_vec.size(),
+        ideal_source_vec.data(),
+        ideal_exponent_vec.data());
+    }
+
+    MLReleaseInteger32List(mlp, eliminated, n_eliminated);
     MLReleaseInteger32List(mlp, ideal_sizes, n_ideal_sizes);
     MLReleaseInteger32List(mlp, ideal_sources, n_ideal_sources);
     MLReleaseInteger32List(mlp, ideal_exponents, n_ideal_exponents);

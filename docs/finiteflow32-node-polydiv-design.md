@@ -143,13 +143,34 @@ non-rational coefficient expressions, and the no-learning side-effect.
 
 `LeadingMonomials[ideal, variables]` is a Mathematica-level helper for
 inspecting the degree-reverse-lexicographic leading ideal of a symbolic ideal.
-It does not implement Buchberger/F4 in Mathematica.  Instead it specializes
-all symbols in `ideal` that are not listed in `variables` to random nonzero
-integers below `2^31`, writes an msolve prime-field input file, and calls:
+`LeadingMonomials[ideal, variables, eliminate]` uses msolve's block
+elimination order to eliminate the listed variables and returns leading
+monomials in the surviving variables.  The surviving variables are computed by
+order-preserving deletion from `variables`, not by `Complement`; for example
+`variables = {z, x, y}` and `eliminate = {z}` leaves `{x, y}`.
+
+The helper does not implement Buchberger/F4 or elimination in Mathematica.
+Instead it specializes all symbols in `ideal` that are not listed in
+`variables` to random nonzero integers below `2^31`, writes an msolve
+prime-field input file, and calls:
 
 ```bash
 msolve -f input.ms -o output.ms -g 1 -v 0
 ```
+
+For the elimination form it first permutes the msolve variable order to put the
+eliminated block first, followed by the order-preserved surviving block, then
+calls:
+
+```bash
+msolve -f input.ms -o output.ms -g 1 -v 0 -e N
+```
+
+where `N` is the number of eliminated variables.  Local msolve 0.9.4 documents
+`-e` as an elimination order with two degree-reverse-lexicographic blocks.  Its
+finite-field output is the full block-order leading ideal, so the helper keeps
+the leading monomials whose eliminated-block exponents are all zero and returns
+only those monomials in the surviving variables.
 
 Local msolve 0.9.4 documents `-g 1` as printing the leading ideal of the
 grevlex reduced Groebner basis.  msolve prints those monomials in increasing
@@ -160,3 +181,58 @@ monomial first and the lowest-weight monomial last.  The helper accepts
 `"Retries" -> n` for retrying unlucky specializations, `"Prime" -> p` for an
 explicit msolve-compatible prime, and `"MsolveExecutable" -> path` for tests
 or nonstandard installs.
+
+## Groebner-basis nodes
+
+`FFAlgNodeGroebner[graph, node, inputs, idealTakePattern, variables, opts]`
+is the lower-level node analogue of `FFAlgNodePolyDiv`.  The take pattern uses
+the same term format, `{{nodeIndex, outputIndex}, monomial}`, but describes
+only ideal generators.  The node evaluates those coefficient inputs over the
+active FiniteFlow32 prime, calls msolve with:
+
+```bash
+msolve -f input.ms -o output.ms -g 2 -v 0
+```
+
+and parses the reduced Groebner basis.  Learning records a list of monomial
+supports, one support list per Groebner-basis polynomial.  Each support list is
+sorted in the FiniteFlow32 convention, highest grevlex monomial first.  Runtime
+returns coefficients flattened polynomial by polynomial:
+
+```text
+gb_1 support_1 coefficients, gb_2 support_2 coefficients, ...
+```
+
+If runtime msolve output has a different polynomial count or contains a
+monomial outside the learned support, the node fails rather than dropping data.
+
+`FFGroebnerLearn[graph]` uses Mathematica-side metadata recorded when the
+Groebner node is registered and selected as the graph output.  For eliminating
+nodes this metadata maps the full variable list to the surviving variables
+before converting learned exponent vectors back to monomials.  The explicit
+form `FFGroebnerLearn[graph, variables]` accepts either the surviving variables
+or the original full variable list; `EliminateVariables -> {...}` can also be
+passed as a fallback when metadata is unavailable.
+
+`FFAlgGroebner[graph, node, ideal, variables, parameters, opts]` is the
+Mathematica wrapper.  It requires both `variables` and `parameters` as
+positional arguments, with `parameters` last so the coefficient-evaluation
+node uses the intended input order.  It reuses the `FFAlgPolyDiv` coefficient
+extraction path, creates the coefficient-evaluation node, builds the ideal
+take pattern, and delegates to `FFAlgNodeGroebner`.  It supports only
+`MonomialOrder -> "DegreeReverseLexicographic"` and
+`EliminateVariables -> {...}`.
+
+For elimination, the node uses msolve's block order by permuting the msolve
+variable list to put the eliminated block first and the order-preserved
+surviving block second, then calling:
+
+```bash
+msolve -f input.ms -o output.ms -g 2 -v 0 -e N
+```
+
+As with `LeadingMonomials`, local msolve returns the full finite-field
+block-order Groebner basis.  The node keeps the basis polynomials whose
+eliminated-block exponents are all zero and converts them to polynomials in the
+surviving variables.  Surviving variables are computed by order-preserving
+deletion from `variables`, not by `Complement`.

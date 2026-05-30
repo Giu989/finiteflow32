@@ -118,6 +118,7 @@ set(FFLOW_SOURCES
     src/ratexpr_parser.cc
     src/poly_reduction.cc
     src/alg_poly_reduction.cc
+    src/alg_groebner.cc
 
     src/mp_functions.cc
     src/mp_gcd.cc
@@ -178,6 +179,7 @@ set(FFLOW_HEADERS
     include/fflow/ratfun_parser.hh
     include/fflow/ratexpr_parser.hh
     include/fflow/poly_reduction.hh
+    include/fflow/alg_groebner.hh
 
     include/fflow/mp_common.hh
     include/fflow/mp_functions.hh

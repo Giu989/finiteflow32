@@ -133,6 +133,12 @@ Run the Mathematica msolve leading-monomial helper test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_leading_monomials.sh
 ```
 
+Run the Mathematica Groebner-basis node test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_groebner.sh
+```
+
 Run the full validation pipeline:
 
 ```bash

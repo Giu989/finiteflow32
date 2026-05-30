@@ -28,6 +28,7 @@
 #include <fflow/algorithm.hh>
 #include <fflow/mp_gcd.hh>
 #include <fflow/alg_poly_reduction.hh>
+#include <fflow/alg_groebner.hh>
 using namespace fflow;
 
 #define FF_MIN_ERROR (FF_ERROR - 10)
@@ -1437,6 +1438,72 @@ extern "C" {
     PolyDiv & alg = *algptr;
     if (alg.init(nparsin.data(), nparsin.size(), std::move(vars),
                  std::move(target_pattern), std::move(ideal_pattern))
+        != SUCCESS)
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    return g->new_node(std::move(algptr), nullptr, in_nodes);
+  }
+
+  FFNode ffAlgNodeGroebner(FFGraph graph,
+                           const FFNode * in_nodes, unsigned n_in_nodes,
+                           const FFCStr * variables, unsigned n_variables,
+                           const unsigned * eliminate_variables,
+                           unsigned n_eliminate_variables,
+                           const unsigned * ideal_poly_sizes,
+                           unsigned n_ideal,
+                           const unsigned * ideal_sources,
+                           const unsigned * ideal_exponents)
+  {
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    std::vector<unsigned> nparsin(n_in_nodes);
+    for (unsigned i=0; i<n_in_nodes; ++i) {
+      Node * node = session.node(graph, in_nodes[i]);
+      if (!node)
+        return FF_ERROR;
+      nparsin[i] = node->algorithm()->nparsout;
+    }
+
+    std::vector<std::string> vars(n_variables);
+    for (unsigned i=0; i<n_variables; ++i) {
+      if (!variables[i])
+        return FF_ERROR;
+      vars[i] = variables[i];
+    }
+
+    std::vector<unsigned> eliminated;
+    if (n_eliminate_variables)
+      eliminated.assign(eliminate_variables,
+                        eliminate_variables + n_eliminate_variables);
+    std::vector<unsigned> ideal_sizes(ideal_poly_sizes,
+                                      ideal_poly_sizes + n_ideal);
+
+    unsigned n_ideal_terms = 0;
+    for (unsigned size : ideal_sizes)
+      n_ideal_terms += size;
+
+    std::vector<unsigned> ideal_source_vec(
+      ideal_sources, ideal_sources + 2*n_ideal_terms);
+    std::vector<unsigned> ideal_exponent_vec(
+      ideal_exponents, ideal_exponents + n_variables*n_ideal_terms);
+
+    PolyTakePattern ideal_pattern;
+    std::string error;
+    if (make_poly_take_pattern_from_flat(n_variables, ideal_sizes,
+                                         ideal_source_vec,
+                                         ideal_exponent_vec,
+                                         ideal_pattern, &error)
+        != SUCCESS) {
+      logerr(error);
+      return FF_ERROR;
+    }
+
+    std::unique_ptr<Groebner> algptr(new Groebner());
+    Groebner & alg = *algptr;
+    if (alg.init(nparsin.data(), nparsin.size(), std::move(vars),
+                 std::move(ideal_pattern), std::move(eliminated))
         != SUCCESS)
       return FF_ERROR;
 
