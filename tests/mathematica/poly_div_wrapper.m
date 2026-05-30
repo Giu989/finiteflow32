@@ -71,9 +71,9 @@ ideal = {
 
 graph = makeGraph[];
 Check[
-  FFAlgPolyDiv[graph, "autoOut", targets, ideal, {x, y}];
+  FFAlgPolyDiv[graph, "autoOut", targets, ideal, {x, y}, {a, b}];
   FFGraphOutput[graph, "autoOut"];,
-  fail["FFAlgPolyDiv inferred-parameter construction raised a Mathematica error"]
+  fail["FFAlgPolyDiv explicit-parameter construction raised a Mathematica error"]
 ];
 
 preLearnEval = Quiet[Check[FFGraphEvaluate[graph, {3, 5}, "PrimeNo" -> 0], $Failed]];
@@ -94,8 +94,46 @@ Quiet[Check[FFDeleteGraph[graph], Null]];
 
 graph = makeGraph[];
 Check[
-  FFAlgPolyDiv[graph, "explicitOut", targets, ideal, {x, y}];,
+  FFAlgPolyDiv[graph, "explicitOut", targets, ideal, {x, y}, {a, b}];,
   fail["FFAlgPolyDiv repeated construction raised a Mathematica error"]
+];
+Quiet[Check[FFDeleteGraph[graph], Null]];
+
+graph = Module[{g = Unique["ff32PolyDivWrapperGraph"], input = Unique["ff32PolyDivWrapperInput"]},
+  FFNewGraph[g, input, {b, a}];
+  g
+];
+Check[
+  FFAlgPolyDiv[
+    graph,
+    "orderedParamsOut",
+    {a + b y},
+    {x},
+    {x, y},
+    {b, a}
+  ];
+  FFGraphOutput[graph, "orderedParamsOut"];,
+  fail["FFAlgPolyDiv reversed-parameter construction raised a Mathematica error"]
+];
+orderedBasis = Check[
+  FFPolyDivLearn[graph, {x, y}],
+  fail["FFAlgPolyDiv reversed-parameter node failed to learn"]
+];
+If[!TrueQ[orderedBasis === {y, 1}],
+  Print["Expected reversed-parameter learned basis: ", {y, 1}];
+  Print["Received reversed-parameter learned basis: ", orderedBasis];
+  Quiet[Check[FFDeleteGraph[graph], Null]];
+  fail["FFAlgPolyDiv reversed-parameter learned basis was unexpected"]
+];
+orderedEval = Check[
+  FFGraphEvaluate[graph, {3, 5}, "PrimeNo" -> 0],
+  fail["FFAlgPolyDiv reversed-parameter node failed to evaluate"]
+];
+If[!TrueQ[orderedEval === {3, 5}],
+  Print["Expected reversed-parameter evaluation: ", {3, 5}];
+  Print["Received reversed-parameter evaluation: ", orderedEval];
+  Quiet[Check[FFDeleteGraph[graph], Null]];
+  fail["FFAlgPolyDiv did not respect the explicit parameter order"]
 ];
 Quiet[Check[FFDeleteGraph[graph], Null]];
 
@@ -106,7 +144,8 @@ Check[
     "rationalOut",
     {((a + 1)/(b - 2)) x^2 + a y},
     {(b + 1) x + y},
-    {x, y}
+    {x, y},
+    {a, b}
   ];,
   fail["FFAlgPolyDiv rational-coefficient construction raised a Mathematica error"]
 ];
@@ -122,47 +161,68 @@ Check[
     "threeParamOut",
     {c x + (a + b) y},
     {(a + 1) x + b y},
-    {x, y}
+    {x, y},
+    {c, a, b}
   ];,
-  fail["FFAlgPolyDiv failed to infer a larger parameter list"]
+  fail["FFAlgPolyDiv failed to accept a larger explicit parameter list"]
 ];
 Quiet[Check[FFDeleteGraph[graph], Null]];
 
 graph = makeGraph[];
 expectFailure[
-  FFAlgPolyDiv[graph, "badOption", targets, ideal, {x, y}, InputNode -> "in"],
+  FFAlgPolyDiv[graph, "missingParams", targets, ideal, {x, y}],
+  "missing explicit parameter list"
+];
+expectFailure[
+  FFAlgPolyDiv[graph, "badOption", targets, ideal, {x, y}, {a, b}, InputNode -> "in"],
   "unsupported InputNode option"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "badCoeffOption", targets, ideal, {x, y}, CoefficientNodeName -> "coeffs"],
+  FFAlgPolyDiv[graph, "badCoeffOption", targets, ideal, {x, y}, {a, b}, CoefficientNodeName -> "coeffs"],
   "unsupported CoefficientNodeName option"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "badVarsOption", targets, ideal, {x, y}, Variables -> Automatic],
+  FFAlgPolyDiv[graph, "badVarsOption", targets, ideal, {x, y}, {a, b}, Variables -> Automatic],
   "unsupported Variables option"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "badOrder", targets, ideal, {x, y}, MonomialOrder -> "Lexicographic"],
+  FFAlgPolyDiv[graph, "badOrder", targets, ideal, {x, y}, {a, b}, MonomialOrder -> "Lexicographic"],
   "unsupported monomial order"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "badPolynomial", {1/(1 + x)}, ideal, {x, y}],
+  FFAlgPolyDiv[graph, "badPolynomial", {1/(1 + x)}, ideal, {x, y}, {a, b}],
   "polynomial variable in denominator"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "emptyVars", targets, ideal, {}],
+  FFAlgPolyDiv[graph, "emptyVars", targets, ideal, {}, {a, b}],
   "empty explicit variables"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "duplicateVars", targets, ideal, {x, x}],
+  FFAlgPolyDiv[graph, "duplicateVars", targets, ideal, {x, x}, {a, b}],
   "duplicate explicit variables"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "nonSymbolVars", targets, ideal, {x + y}],
+  FFAlgPolyDiv[graph, "nonSymbolVars", targets, ideal, {x + y}, {a, b}],
   "non-symbol explicit variables"
 ];
 expectFailure[
-  FFAlgPolyDiv[graph, "badCoeff", {Sin[a] x + y}, ideal, {x, y}],
+  FFAlgPolyDiv[graph, "missingCoeffParam", targets, ideal, {x, y}, {a}],
+  "missing coefficient parameter"
+];
+expectFailure[
+  FFAlgPolyDiv[graph, "duplicateParams", targets, ideal, {x, y}, {a, a}],
+  "duplicate explicit parameters"
+];
+expectFailure[
+  FFAlgPolyDiv[graph, "overlapParams", targets, ideal, {x, y}, {a, x}],
+  "parameter overlaps polynomial variable"
+];
+expectFailure[
+  FFAlgPolyDiv[graph, "nonSymbolParams", targets, ideal, {x, y}, {a + b}],
+  "non-symbol explicit parameters"
+];
+expectFailure[
+  FFAlgPolyDiv[graph, "badCoeff", {Sin[a] x + y}, ideal, {x, y}, {a, b}],
   "non-rational coefficient expression"
 ];
 Quiet[Check[FFDeleteGraph[graph], Null]];

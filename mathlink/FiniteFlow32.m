@@ -101,7 +101,7 @@ FFAlgAdd::usage = "FFAlgAdd[graph,node,inputs] adds the lists returned by the in
 FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds one to every entry returned by input."
 FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
 FFAlgNodePolyDiv::usage = "FFAlgNodePolyDiv[graph,node,inputs,{targetTakePattern,idealTakePattern},vars] creates a polynomial-reduction node.  Each take-pattern polynomial is a list of terms {{nodeIndex,outputIndex},monomial}; the targets are reduced modulo the ideal with msolve in degree reverse lexicographic order."
-FFAlgPolyDiv::usage = "FFAlgPolyDiv[graph,node,targets,ideal,variables] creates coefficient-evaluation nodes for symbolic polynomial targets and ideal generators, infers reconstruction parameters from the coefficients, builds the corresponding take patterns, and calls FFAlgNodePolyDiv.  The only supported option is MonomialOrder -> \"DegreeReverseLexicographic\"."
+FFAlgPolyDiv::usage = "FFAlgPolyDiv[graph,node,targets,ideal,variables,parameters] creates coefficient-evaluation nodes for symbolic polynomial targets and ideal generators, using the explicit parameter order in parameters, builds the corresponding take patterns, and calls FFAlgNodePolyDiv.  The only supported option is MonomialOrder -> \"DegreeReverseLexicographic\"."
 LeadingMonomials::usage = "LeadingMonomials[ideal,variables] uses msolve to compute the leading monomials of the degree-reverse-lexicographic Groebner basis of ideal.  Symbols in ideal that are not listed in variables are treated as parameters and are substituted by random nonzero integers below 2^31 before calling msolve.  The result is sorted in the FiniteFlow32 polynomial-division convention, with the highest-weight monomial first."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
@@ -232,7 +232,7 @@ FF::badpolydivpattern = "Invalid polynomial-division take pattern."
 FF::badpolydivoption = "Option `1` is not supported by FFAlgPolyDiv."
 FF::badpolydivorder = "FFAlgPolyDiv only supports MonomialOrder -> \"DegreeReverseLexicographic\"."
 FF::badpolydivvars = "Invalid polynomial-division variable list `1`."
-FF::badpolydivparams = "Could not infer valid polynomial-division parameters from coefficients `1`."
+FF::badpolydivparams = "Invalid polynomial-division parameter list `1`.  Parameters must be distinct symbols, disjoint from variables `2`, and include all non-variable coefficient symbols in `3`."
 FF::badpolydivpoly = "`1` is not a polynomial in the polynomial variables `2`."
 FF::badpolydivcoeff = "Invalid coefficient expression `1`.  Coefficients must be rational functions of the parameters `2`."
 FF::badpolydivcoeffnode = "Could not create the internal coefficient-evaluation node for FFAlgPolyDiv."
@@ -1307,11 +1307,16 @@ PolyDivValidateVariables[vars_] := Module[{},
   vars
 ];
 
-PolyDivInferParameters[coeffs_, vars_] := Module[
-  {params},
-  params = Select[PolyDivLeafSymbols[coeffs], !MemberQ[vars,#]&];
-  If[!PolyDivSymbolListQ[params, True],
-    Message[FF::badpolydivparams, coeffs]; Throw[$Failed]
+PolyDivValidateParameters[params_, vars_, coeffs_] := Module[
+  {symbols, coefficientParams, missing},
+  If[!PolyDivSymbolListQ[params, True] || !DuplicateFreeQ[Join[vars, params]],
+    Message[FF::badpolydivparams, params, vars, coeffs]; Throw[$Failed]
+  ];
+  symbols = PolyDivLeafSymbols[coeffs];
+  coefficientParams = Select[symbols, !MemberQ[vars,#]&];
+  missing = Complement[coefficientParams, params];
+  If[Length[missing] != 0,
+    Message[FF::badpolydivparams, params, vars, coeffs]; Throw[$Failed]
   ];
   params
 ];
@@ -1377,7 +1382,8 @@ PolyDivUnsupportedOptionNames[opts_] := Module[
   Select[names, !MemberQ[{MonomialOrder}, #]&]
 ];
 
-FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := Module[
+FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,parameters_List,
+             opts___] := Module[
   {optRules = {opts}, unsupported, optAssoc, params, vars, order,
    targetInfo, idealInfo, coeffs = {}, coeffNode, inputNode, coeffOk},
   Catch[
@@ -1400,7 +1406,7 @@ FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := Module[
     coeffs = targetInfo[[2]];
     idealInfo = PolyDivExtractTakePattern[ideal, vars, coeffs];
     coeffs = idealInfo[[2]];
-    params = PolyDivInferParameters[coeffs, vars];
+    params = PolyDivValidateParameters[parameters, vars, coeffs];
     coeffs = PolyDivValidateCoefficient[#, params]&/@coeffs;
 
     coeffNode = Unique["ffpolydivcoeff$"];
@@ -1415,6 +1421,11 @@ FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := Module[
                      vars]
   ]
 ];
+
+FFAlgPolyDiv[gid_,id_,targets_List,ideal_List,variables_List,opts___] := (
+  Message[FF::badpolydivparams, Missing["Required"], variables, targets];
+  $Failed
+);
 
 Options[LeadingMonomials] = {
   MonomialOrder -> "DegreeReverseLexicographic",

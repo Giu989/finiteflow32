@@ -116,22 +116,28 @@ and runtime evaluation through the public Mathematica API.
 
 ## High-level Mathematica wrapper
 
-`FFAlgPolyDiv[graph, node, targets, ideal, variables, opts]` is a
+`FFAlgPolyDiv[graph, node, targets, ideal, variables, parameters, opts]` is a
 Mathematica-only convenience wrapper around `FFAlgNodePolyDiv`.  It parses
 symbolic target and ideal polynomials in the supplied polynomial variables,
-extracts coefficient expressions, infers reconstruction parameters from those
-coefficients, creates the internal coefficient-evaluation node with
+extracts coefficient expressions, validates that every non-variable coefficient
+symbol is present in the explicit `parameters` list, creates the internal
+coefficient-evaluation node with
 `FFAlgRatFunEval` (or `FFAlgRatNumEval` when there are no parameters), builds
 the take patterns, and then calls the lower-level node.
+
+The parameter list is intentionally explicit because `FFAlgRatFunEval` maps
+numerical graph-input entries by position.  Inferring parameters from the
+coefficient expressions can silently swap values when the graph input node uses
+a different order from the expression traversal order.
 
 The wrapper supports only `MonomialOrder -> "DegreeReverseLexicographic"`.
 It does not run learning, graph evaluation, reconstruction, or msolve directly.
 The Mathematica test
 `tests/mathematica/poly_div_wrapper.m`, run through
-`scripts/test_mathematica_poly_div_wrapper.sh`, covers inferred parameters,
-rational coefficients, unsupported options, unsupported orders, invalid
-polynomials, invalid variable lists, non-rational coefficient expressions, and
-the no-learning side-effect.
+`scripts/test_mathematica_poly_div_wrapper.sh`, covers explicit parameter
+ordering, rational coefficients, unsupported options, unsupported orders,
+invalid polynomials, invalid variable lists, invalid parameter lists,
+non-rational coefficient expressions, and the no-learning side-effect.
 
 ## LeadingMonomials helper
 
