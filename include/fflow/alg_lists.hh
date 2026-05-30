@@ -78,6 +78,17 @@ namespace fflow {
   };
 
 
+  class AddOne : public Algorithm {
+  public:
+
+    void init(unsigned input_len);
+
+    virtual Ret evaluate(Context * ctxt,
+                         AlgInput xin[], Mod mod, AlgorithmData * data,
+                         UInt xout[]) const override;
+  };
+
+
   class Mul : public Algorithm {
   public:
 

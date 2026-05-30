@@ -1342,6 +1342,26 @@ extern "C" {
     return id;
   }
 
+  FFNode ffAlgAddOne(FFGraph graph, FFNode in_node)
+  {
+    std::unique_ptr<AddOne> algptr(new AddOne());
+    AddOne & alg = *algptr;
+
+    Node * node = session.node(graph, in_node);
+    if (!node)
+      return FF_ERROR;
+
+    alg.init(node->algorithm()->nparsout);
+
+    if (!session.graph_exists(graph))
+      return FF_ERROR;
+
+    Graph * g = session.graph(graph);
+    unsigned id = g->new_node(std::move(algptr), nullptr, &in_node);
+
+    return id;
+  }
+
   FFNode ffAlgMul(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes)
   {

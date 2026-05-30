@@ -3676,6 +3676,46 @@ extern "C" {
   }
 
 
+  int fflowml_alg_add_one(WolframLibraryData libData, MLINK mlp)
+  {
+    (void)(libData);
+
+    int n_args;
+    MLNewPacket(mlp);
+    MLTestHead( mlp, "List", &n_args);
+
+    int graphid;
+    std::vector<unsigned> inputnodes;
+    MLGetInteger32(mlp, &graphid);
+    get_input_nodes(mlp, inputnodes);
+
+    MLNewPacket(mlp);
+
+    Node * node = nullptr;
+    if (!session.graph_exists(graphid) || inputnodes.size() != 1 ||
+        !(node = session.node(graphid, inputnodes[0]))) {
+      MLPutSymbol(mlp, "$Failed");
+      return LIBRARY_NO_ERROR;
+    }
+
+    std::unique_ptr<AddOne> algptr(new AddOne());
+    AddOne & alg = *algptr;
+    alg.init(node->algorithm()->nparsout);
+
+    Graph * graph = session.graph(graphid);
+    unsigned id = graph->new_node(std::move(algptr), nullptr,
+                                  inputnodes.data());
+
+    if (id == ALG_NO_ID) {
+      MLPutSymbol(mlp, "$Failed");
+    } else {
+      MLPutInteger32(mlp, id);
+    }
+
+    return LIBRARY_NO_ERROR;
+  }
+
+
   int fflowml_alg_mul(WolframLibraryData libData, MLINK mlp)
   {
     (void)(libData);

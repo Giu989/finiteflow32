@@ -97,6 +97,8 @@ FFAlgTake::usage="FFAlgTake[graph,node,inputs,takepattern] takes and returns sel
 FFAlgSlice::usage="FFAlgSlice[graph,node,{input},start,end], with integers start and end, returns the elements from position start to position end of its input.
 FFAlgSlice[graph,node,{input},start], with integer start, returns the elements of its input starting from position start until the last one."
 FFAlgAdd::usage = "FFAlgAdd[graph,node,inputs] adds the lists returned by the inputs element-wise and returns the result."
+FFAlgAddOne::usage = "FFAlgAddOne[graph,node,{input}] creates a node which adds one to every entry returned by input."
+FFAddOne::usage = "FFAddOne[graph,node,input] creates a node which adds one to every entry returned by input."
 FFAlgMul::usage = "FFAlgMul[graph,node,inputs] multiplies the lists returned by the inputs element-wise and returns the result."
 FFAlgMatMul::usage = "FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2], with integers r1,c1,c2, interprets input1 and input2 as the elements of a r1 \[Times] c1 matrix and a c1 \[Times] c2 matrix respectively, in row-major order, and returns the result of the matrix multiplication input1.input2."
 FFAlgSparseMatMul::usage = "FFAlgSparseMatMul[graph,node,{input1,input2},r1,c1,c2,nonzerocols1,nonzerocols2] is analogous to FFAlgMatMul[graph,node,{input1,input2},r1,c1,c2] except that input1 and input2 only return the potentially non-vanishing matrix elements of the inputs.  The arguments nonzerocols1 and nonzerocols2 are lists of lists with the potentially non-vanishing columns in each row for the two input matrices respectively."
@@ -1200,6 +1202,12 @@ RegisterAlgAdd[gid_,inputs_,{}]:=Catch[FFAlgAddImplem[gid,inputs]];
 FFAlgAdd[gid_,id_,inputs_List]:=FFRegisterAlgorithm[RegisterAlgAdd,gid,id,inputs,{}];
 
 
+RegisterAlgAddOne[gid_,inputs_,{}]:=Catch[FFAlgAddOneImplem[gid,inputs]];
+FFAlgAddOne[gid_,id_,{input_}]:=FFRegisterAlgorithm[RegisterAlgAddOne,gid,id,{input},{}];
+FFAddOne[gid_,id_,{input_}]:=FFAlgAddOne[gid,id,{input}];
+FFAddOne[gid_,id_,input_]:=FFAlgAddOne[gid,id,{input}];
+
+
 RegisterAlgMul[gid_,inputs_,{}]:=Catch[FFAlgMulImplem[gid,inputs]];
 FFAlgMul[gid_,id_,inputs_List]:=FFRegisterAlgorithm[RegisterAlgMul,gid,id,inputs,{}];
 
@@ -2061,6 +2069,7 @@ FFLoadLibObjects[] := Module[
     FFAlgTakeImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_take", LinkObject, LinkObject];
     FFAlgSliceImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_slice", LinkObject, LinkObject];
     FFAlgAddImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add", LinkObject, LinkObject];
+    FFAlgAddOneImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_add_one", LinkObject, LinkObject];
     FFAlgMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mul", LinkObject, LinkObject];
     FFAlgMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_mat_mul", LinkObject, LinkObject];
     FFAlgSparseMatMulImplem = LibraryFunctionLoad[fflowlib, "fflowml_alg_sparse_mat_mul", LinkObject, LinkObject];

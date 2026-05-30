@@ -332,6 +332,7 @@ extern "C" {
 
   FFNode ffAlgAdd(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes);
+  FFNode ffAlgAddOne(FFGraph graph, FFNode in_node);
   FFNode ffAlgMul(FFGraph graph,
                   const FFNode * in_nodes, unsigned n_in_nodes);
 

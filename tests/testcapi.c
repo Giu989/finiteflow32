@@ -4,6 +4,49 @@
 // Note: on failure we are leaking memory, but it's not worth fixing
 // for a simple test like this
 
+FFStatus test_add_one()
+{
+  const unsigned nvars = 2;
+
+  FFNode in = 0;
+  FFGraph graph = ffNewGraphWithInput(nvars, &in);
+  if (ffIsError(graph)) {
+    fprintf(stderr, "Failed to create graph with %u input variables.\n", nvars);
+    return FF_ERROR;
+  }
+
+  FFNode add_one = ffAlgAddOne(graph, in);
+  if (ffIsError(add_one)) {
+    fprintf(stderr, "Failed to create AddOne node.\n");
+    return FF_ERROR;
+  }
+
+  if (ffSetOutputNode(graph, add_one) != FF_SUCCESS) {
+    fprintf(stderr, "Failed to set AddOne output node.\n");
+    return FF_ERROR;
+  }
+
+  const FFUInt prime = ffPrimeNo(0);
+  const FFUInt x[2] = {0, prime - 1};
+  FFUInt * output = ffEvaluateGraph(graph, x, 0);
+  if (!output) {
+    fprintf(stderr, "Failed to evaluate AddOne graph.\n");
+    return FF_ERROR;
+  }
+
+  FFStatus ret = FF_SUCCESS;
+  if (output[0] != 1 || output[1] != 0) {
+    fprintf(stderr, "AddOne returned [%llu, %llu], expected [1, 0].\n",
+            (unsigned long long) output[0], (unsigned long long) output[1]);
+    ret = FF_ERROR;
+  }
+
+  ffFreeMemoryU64(output);
+  ffDeleteGraph(graph);
+
+  return ret;
+}
+
 FFStatus test_jsonratfun()
 {
   // Define graph from JSON-serialized list of rational functions
@@ -89,5 +132,7 @@ FFStatus test_jsonratfun()
 
 int main(void)
 {
+  if (test_add_one() != FF_SUCCESS)
+    return FF_ERROR;
   return test_jsonratfun();
 }

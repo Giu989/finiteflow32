@@ -97,6 +97,12 @@ Run the Mathematica multi-prime reconstruction test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_multiprime.sh
 ```
 
+Run the Mathematica native custom-node test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_add_one.sh
+```
+
 Run the full validation pipeline:
 
 ```bash

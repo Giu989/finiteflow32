@@ -145,6 +145,26 @@ namespace fflow {
   }
 
 
+  void AddOne::init(unsigned input_len)
+  {
+    nparsin.resize(1);
+    nparsin[0] = input_len;
+    nparsout = input_len;
+  }
+
+  Ret AddOne::evaluate(Context *,
+                       AlgInput xin[], Mod mod, AlgorithmData *,
+                       UInt xout[]) const
+  {
+    const unsigned ne = nparsout;
+
+    for (unsigned i=0; i<ne; ++i)
+      xout[i] = add_mod(xin[0][i], UInt(1), mod);
+
+    return SUCCESS;
+  }
+
+
   void Mul::init(unsigned nlists, unsigned list_len)
   {
     nparsin.resize(nlists);
@@ -380,4 +400,3 @@ namespace fflow {
   }
 
 } // namespace fflow
-
