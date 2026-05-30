@@ -1,22 +1,24 @@
 # FiniteFlow32 Arithmetic Audit
 
 This audit records the source-level assumptions that had to be addressed before
-using primes below `2^32`. The upstream arithmetic is optimized for primes near
-`2^63` satisfying:
+using small primes. The current FiniteFlow32 table is below `2^31` for msolve
+compatibility, while the arithmetic branch remains valid for primes below
+`2^32`. The upstream arithmetic is optimized for primes near `2^63` satisfying:
 
 ```text
 2*p < 2^64 < 3*p
 ```
 
 FiniteFlow32 keeps `UInt` / `FFUInt` storage as `uint64_t`, but can now build
-with a 32-bit prime table by enabling `FFLOW_USE_UINT32_PRIMES`.
+with an msolve-compatible prime table below `2^31` by enabling
+`FFLOW_USE_UINT32_PRIMES`.
 
 ## Prime Tables
 
 - [include/fflow/primes.hh](../include/fflow/primes.hh)
   - Upstream behavior: `BIG_UINT_PRIMES` is the 2048-prime table near `2^63`.
   - FiniteFlow32 mode: `BIG_UINT_PRIMES` aliases a 400-prime table below
-    `2^32`.
+    `2^31`.
   - Strategy: build-time option `FFLOW_USE_UINT32_PRIMES`; existing
     `prime_no` APIs continue to index `BIG_UINT_PRIMES`.
 
@@ -25,7 +27,7 @@ with a 32-bit prime table by enabling `FFLOW_USE_UINT32_PRIMES`.
   - Table size: 400.
 
 - [src/ff_prime32_list.hh](../src/ff_prime32_list.hh)
-  - New generated table of the 400 largest primes below `2^32`.
+  - Generated table of the 400 largest primes below `2^31`.
   - Regenerate with [scripts/generate_primes32.py](../scripts/generate_primes32.py).
 
 ## Modular Arithmetic Helpers
@@ -95,7 +97,7 @@ with a 32-bit prime table by enabling `FFLOW_USE_UINT32_PRIMES`.
   - Uses `BIG_UINT_PRIMES[(start_mod + i) % BIG_UINT_PRIMES_SIZE]` for CRT
     reconstruction.
   - Strategy: active table switches to 32-bit primes at build time. More
-    primes may be needed because each prime contributes roughly 32 CRT bits
+    primes may be needed because each prime contributes roughly 31 CRT bits
     instead of 63.
 
 - [src/alg_mp_reconstruction.cc](../src/alg_mp_reconstruction.cc)
@@ -114,14 +116,14 @@ with a 32-bit prime table by enabling `FFLOW_USE_UINT32_PRIMES`.
 ## Tests Added
 
 - [tests/testfiniteflow32_arithmetic.cc](../tests/testfiniteflow32_arithmetic.cc)
-  - Verifies the active table is the 32-bit table.
-  - Checks primality for selected table entries.
+  - Verifies the active table is the msolve-compatible 32-bit table.
+  - Checks all table entries are prime, below `2^31`, and strictly descending.
   - Randomized and edge-case checks for reduction, addition, subtraction,
     negation, multiplication, Shoup multiplication fallback, fused
     `a + b*c`, fused `a - b*c`, inverse, and division.
 
 - [tests/mathematica/multiprime_reconstruction.m](../tests/mathematica/multiprime_reconstruction.m)
-  - Verifies Mathematica sees the 400-prime 32-bit table.
+  - Verifies Mathematica sees the 400-prime table below `2^31`.
   - Confirms reconstruction with too few 32-bit primes does not succeed.
   - Reconstructs large-coefficient rational functions with many primes and
     checks the exact result.
@@ -129,7 +131,7 @@ with a 32-bit prime table by enabling `FFLOW_USE_UINT32_PRIMES`.
 ## Remaining Watch Points
 
 - `MPolyReconstruction::getXi` returns `x0 + i` without explicit reduction.
-  Existing degree ranges are far below `2^32`, and sampled `x0` almost never
+  Existing degree ranges are far below `2^31`, and sampled `x0` almost never
   falls within that small tail window. The current tests pass, but this is a
   useful place to revisit if very high degree reconstruction is pushed near the
   field size.

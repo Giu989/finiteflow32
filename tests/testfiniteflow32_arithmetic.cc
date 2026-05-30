@@ -73,7 +73,7 @@ void test_prime(UInt p)
 {
   Mod mod(p);
 
-  require(p <= 0xffffffffULL, "active prime is not 32-bit", p);
+  require(p < (UInt(1) << 31), "active prime is not msolve-compatible", p);
   require(is_prime_u32(p), "active prime is not prime", p);
   require(beta_mod(p) == UInt((FFU128(1) << 64) % p), "beta_mod", p);
 
@@ -144,6 +144,15 @@ int main()
           BIG_UINT32_PRIMES[BIG_UINT32_PRIMES_SIZE - 1],
           "active table tail is not the 32-bit table",
           BIG_UINT_PRIMES[BIG_UINT_PRIMES_SIZE - 1]);
+
+  for (unsigned idx = 0; idx < BIG_UINT_PRIMES_SIZE; ++idx) {
+    UInt p = BIG_UINT_PRIMES[idx];
+    require(p < (UInt(1) << 31), "active prime is not msolve-compatible", p);
+    require(is_prime_u32(p), "active prime is not prime", p);
+    if (idx)
+      require(BIG_UINT_PRIMES[idx - 1] > p,
+              "active prime table is not strictly descending", p);
+  }
 
   std::vector<unsigned> prime_indexes = {
     0, 1, 2, 3, 4, 5, 7, 11, 17, 31, 63, 127, 199, 255, 319, 399

@@ -103,6 +103,12 @@ Run the Mathematica native custom-node test:
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_add_one.sh
 ```
 
+Run the Mathematica msolve prime-compatibility test:
+
+```bash
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_msolve_prime.sh
+```
+
 Run the full validation pipeline:
 
 ```bash

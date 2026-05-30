@@ -47,8 +47,8 @@ Get["FiniteFlow32`"];
 If[FFNAvailablePrimes[] != 400,
   fail["Expected 400 active 32-bit primes, found " <> ToString[FFNAvailablePrimes[]]]
 ];
-If[FFPrimeNo[0] > 2^32 - 1 || FFPrimeNo[399] > 2^32 - 1,
-  fail["The active prime table is not the 32-bit table"]
+If[FFPrimeNo[0] >= 2^31 || FFPrimeNo[399] >= 2^31,
+  fail["The active prime table is not the msolve-compatible table below 2^31"]
 ];
 
 vars = {x, y};
@@ -98,6 +98,5 @@ Quiet[Check[FFDeleteGraph[graph], Null]];
 
 Print["finiteflow32 Mathematica multiprime reconstruction test passed"];
 finish[0];
-
 
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate the FiniteFlow32 32-bit prime table."""
+"""Generate the FiniteFlow32 msolve-compatible prime table."""
 
 from __future__ import annotations
 
@@ -8,7 +8,7 @@ from pathlib import Path
 
 
 DEFAULT_COUNT = 400
-LIMIT = 2**32
+LIMIT = 2**31
 
 
 def is_prime_u32(n: int) -> bool:
@@ -42,7 +42,7 @@ def is_prime_u32(n: int) -> bool:
     return True
 
 
-def largest_u32_primes(count: int) -> list[int]:
+def largest_primes_below_limit(count: int) -> list[int]:
     primes: list[int] = []
     n = LIMIT - 1
     while len(primes) < count:
@@ -62,7 +62,7 @@ def main() -> int:
     parser.add_argument("--output", type=Path)
     args = parser.parse_args()
 
-    primes = largest_u32_primes(args.count)
+    primes = largest_primes_below_limit(args.count)
     text = render(primes)
 
     if args.output:

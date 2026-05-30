@@ -16,7 +16,7 @@ namespace fflow {
   //    Select[2^63 - Range[89121], PrimeQ]
   //
   // In FFLOW_USE_UINT32_PRIMES mode, BIG_UINT_PRIMES is instead the
-  // FiniteFlow32 table of the 400 largest primes below 2^32.
+  // FiniteFlow32 table of the 400 largest msolve-compatible primes below 2^31.
 #if FFLOW_USE_UINT32_PRIMES
   const unsigned BIG_UINT_PRIMES_SIZE = BIG_UINT32_PRIMES_SIZE;
 #else

@@ -14,6 +14,7 @@ PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_smoke.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_tutorial.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_multiprime.sh
 PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_add_one.sh
+PREFIX="$PWD/_install/finiteflow32" ./scripts/test_mathematica_msolve_prime.sh
 ```
 
 Or run the complete build/install/test pipeline:
